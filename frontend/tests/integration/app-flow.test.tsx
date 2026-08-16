@@ -62,6 +62,7 @@ function setupBackend(): void {
         date: 1_700_000_000,
         txid: TXID,
         proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+        is_accepted: true,
       })
       balance += 1_000_000_000n
       return json(200, { txid: TXID })

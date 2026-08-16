@@ -91,7 +91,7 @@ describe("KaspaClient reads", () => {
     await c.getFullTransactions(ADDRESS);
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      `${BASE}/addresses/${ADDRESS}/full-transactions?limit=50&offset=0`,
+      `${BASE}/addresses/${ADDRESS}/full-transactions?limit=50&offset=0&resolve_previous_outpoints=light`,
       expect.anything(),
     );
   });
@@ -103,7 +103,7 @@ describe("KaspaClient reads", () => {
     await c.getFullTransactions(ADDRESS, { limit: 20, offset: 40 });
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      `${BASE}/addresses/${ADDRESS}/full-transactions?limit=20&offset=40`,
+      `${BASE}/addresses/${ADDRESS}/full-transactions?limit=20&offset=40&resolve_previous_outpoints=light`,
       expect.anything(),
     );
   });

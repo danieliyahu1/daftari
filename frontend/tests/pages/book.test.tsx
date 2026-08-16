@@ -19,6 +19,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     date: 1_700_000_000,
     txid: TXID,
     proof_url: PROOF,
+    is_accepted: true,
     ...overrides,
   }
 }

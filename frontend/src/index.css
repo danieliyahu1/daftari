@@ -466,6 +466,20 @@ body {
   font-size: 0.72rem;
 }
 
+.book-status-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
+.book-status-dot--accepted {
+  background: var(--color-success);
+}
+
+.book-status-dot--rejected {
+  background: var(--color-error);
+}
+
 .book-date {
   color: var(--color-text-secondary);
   white-space: nowrap;

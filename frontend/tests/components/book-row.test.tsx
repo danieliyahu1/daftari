@@ -13,6 +13,7 @@ function makeRow(overrides: Partial<BookRow> = {}): BookRow {
     date: 1_700_000_000,
     txid: TXID,
     proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+    is_accepted: true,
     ...overrides,
   }
 }
@@ -42,5 +43,27 @@ describe('BookRow', () => {
     )
     expect(screen.getByTestId('book-direction')).toHaveTextContent('OUT')
     expect(screen.getByTestId('book-amount')).toHaveTextContent('−1 KAS')
+  })
+
+  it('shows a green dot for an accepted row', () => {
+    render(
+      <ul>
+        <BookRowComponent row={makeRow({ is_accepted: true })} />
+      </ul>,
+    )
+    expect(screen.getByTestId('book-status')).toHaveClass(
+      'book-status-dot--accepted',
+    )
+  })
+
+  it('shows a red dot for a not-accepted row', () => {
+    render(
+      <ul>
+        <BookRowComponent row={makeRow({ is_accepted: false })} />
+      </ul>,
+    )
+    expect(screen.getByTestId('book-status')).toHaveClass(
+      'book-status-dot--rejected',
+    )
   })
 })

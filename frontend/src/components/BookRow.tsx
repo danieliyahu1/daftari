@@ -25,6 +25,11 @@ export function BookRow({ row }: BookRowProps): JSX.Element {
         </span>
       </div>
       <div className="book-row-meta">
+        <span
+          className={`book-status-dot book-status-dot--${row.is_accepted ? 'accepted' : 'rejected'}`}
+          data-testid="book-status"
+          aria-label={row.is_accepted ? 'Accepted' : 'Not accepted'}
+        />
         <span className="book-date" data-testid="book-date">
           {formatDate(row.date)}
         </span>

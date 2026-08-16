@@ -165,7 +165,7 @@ export class KaspaClient {
     const offset = opts.offset ?? 0;
     return this.request(
       "full-transactions",
-      `/addresses/${address}/full-transactions?limit=${limit}&offset=${offset}`,
+      `/addresses/${address}/full-transactions?limit=${limit}&offset=${offset}&resolve_previous_outpoints=light`,
       { cacheable: true },
     );
   }
