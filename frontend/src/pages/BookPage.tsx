@@ -57,7 +57,7 @@ export function BookPage(): JSX.Element {
     try {
       const result = await apiClient.getBook(groupCode, PAGE_SIZE, book.rows.length)
       setBook((prev) =>
-        prev ? { balance_sompi: prev.balance_sompi, rows: [...prev.rows, ...result.rows] } : prev,
+        prev ? { ...prev, rows: [...prev.rows, ...result.rows] } : prev,
       )
       setHasMore(result.rows.length === PAGE_SIZE)
       logger.info('book rows appended', {
@@ -92,6 +92,16 @@ export function BookPage(): JSX.Element {
         </div>
       ) : book ? (
         <>
+          <section className="book-header" data-testid="book-group">
+            <span className="micro-label">Group</span>
+            <span className="book-group-name" title={book.group.address}>
+              {book.group.name}
+            </span>
+            <span className="kind-mark" data-testid="book-group-kind">
+              {book.group.kind === 'group' ? 'group' : 'person'}
+            </span>
+          </section>
+
           <section className="balance-card" data-testid="book-balance">
             <span className="micro-label">The group has</span>
             <span className="balance-amount mono">{sompiToKas(book.balance_sompi)} KAS</span>

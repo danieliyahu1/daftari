@@ -28,9 +28,14 @@ describe("shared type sanity", () => {
     expectTypeOf(row.date).toEqualTypeOf<number>();
   });
 
-  it("book carries balance plus rows", () => {
-    const book: Book = { balance_sompi: "0", rows: [] };
+  it("book carries balance, rows, and the registered group", () => {
+    const book: Book = {
+      balance_sompi: "0",
+      rows: [],
+      group: { address: "", name: "", kind: "group" },
+    };
     expectTypeOf(book.rows).toEqualTypeOf<BookRow[]>();
+    expectTypeOf(book.group.kind).toEqualTypeOf<"user" | "group">();
   });
 
   it("payment outcome is recorded | failed", () => {

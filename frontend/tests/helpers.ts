@@ -3,6 +3,16 @@ import type { KastleExtension } from '../src/wallet/kastle'
 export const USER_ADDRESS = 'kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl'
 export const CHAMA_ADDRESS = 'kaspatest:qpchy8753068rt2szvwxc0yr0kl38sjxqs0cg7xe97y6tzxh5h5wx09rle5a7'
 
+export const GROUP_STUB = {
+  address: CHAMA_ADDRESS,
+  name: 'Plot',
+  kind: 'group',
+} as const
+
+export function bookStub(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { balance_sompi: '0', rows: [], group: GROUP_STUB, ...overrides }
+}
+
 type MockKastle = KastleExtension & {
   emit: (event: string, ...args: unknown[]) => void
 }

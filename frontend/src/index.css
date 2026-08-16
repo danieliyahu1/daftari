@@ -469,6 +469,21 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.book-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.book-group-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+}
+
 .balance-amount {
   font-size: 1.75rem;
   font-weight: 600;
@@ -519,6 +534,16 @@ body {
 .book-party {
   font-size: 0.78rem;
   color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.book-party-name {
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

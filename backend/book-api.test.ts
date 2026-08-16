@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getNetworkConfig } from "../shared/network";
-import type { Book, BookRow } from "../shared/types";
+import type { Book, BookRow, Wallet, WalletKind } from "../shared/types";
 import type { TxModel } from "./kaspa-api-types";
 import {
   bookRowsForPage,
@@ -8,8 +8,9 @@ import {
   deriveDirection,
   handleGetBook,
   selectOtherParty,
+  UNREGISTERED_GROUP_COPY,
 } from "./book-api";
-import type { BookChain } from "./book-api";
+import type { BookChain, BookWalletResolver } from "./book-api";
 import { UpstreamError } from "./kaspa-client";
 
 const GROUP = "kaspatest:qzvp9r3gxg4wvcl44lm5phav2gz5zfx2de7qqqwd3hjlr53rtsn6wefhk0aj8";
@@ -92,6 +93,33 @@ function makeChain(overrides: Partial<BookChain> = {}): {
     getFullTransactions,
   };
 }
+
+function makeWallets(
+  registered: Array<{ address: string; name: string; kind: WalletKind; created_at?: number }> = [],
+): BookWalletResolver {
+  const byAddress = new Map(
+    registered.map((wallet) => [
+      wallet.address,
+      {
+        address: wallet.address,
+        name: wallet.name,
+        kind: wallet.kind,
+        created_at: wallet.created_at ?? 0,
+      },
+    ]),
+  );
+  return {
+    get: (address) => byAddress.get(address) ?? null,
+    resolveMany: (addresses) =>
+      addresses
+        .map((address) => byAddress.get(address))
+        .filter((wallet): wallet is Wallet => wallet !== undefined),
+  };
+}
+
+const GROUP_WALLET: Wallet = { address: GROUP, name: "Plot", kind: "group", created_at: 0 };
+const ALICE_WALLET: Wallet = { address: ALICE, name: "Amina", kind: "user", created_at: 0 };
+const BOB_WALLET: Wallet = { address: BOB, name: "Kamau Traders", kind: "group", created_at: 0 };
 
 describe("deriveDirection", () => {
   it("is in when the group address is among the outputs", () => {
@@ -277,22 +305,26 @@ describe("bookRowsForPage", () => {
 });
 
 describe("handleGetBook", () => {
-  it("returns balance and empty rows for an empty book", async () => {
+  it("returns balance, the group, and empty rows for an empty book", async () => {
     const { chain } = makeChain();
-    const result = await handleGetBook(GROUP, {}, chain);
+    const result = await handleGetBook(GROUP, {}, chain, makeWallets([GROUP_WALLET]));
     expect(result.status).toBe(200);
-    expect(result.body).toEqual<Book>({ balance_sompi: "1000000000", rows: [] });
+    expect(result.body).toEqual<Book>({
+      balance_sompi: "1000000000",
+      rows: [],
+      group: { address: GROUP, name: "Plot", kind: "group" },
+    });
   });
 
   it("paginates with default limit and offset", async () => {
     const { chain, getFullTransactions } = makeChain();
-    await handleGetBook(GROUP, {}, chain);
+    await handleGetBook(GROUP, {}, chain, makeWallets([GROUP_WALLET]));
     expect(getFullTransactions).toHaveBeenCalledWith(GROUP, { limit: 50, offset: 0 });
   });
 
   it("honours custom limit and offset", async () => {
     const { chain, getFullTransactions } = makeChain();
-    await handleGetBook(GROUP, { limit: 20, offset: 40 }, chain);
+    await handleGetBook(GROUP, { limit: 20, offset: 40 }, chain, makeWallets([GROUP_WALLET]));
     expect(getFullTransactions).toHaveBeenCalledWith(GROUP, { limit: 20, offset: 40 });
   });
 
@@ -307,7 +339,7 @@ describe("handleGetBook", () => {
         }),
       ]),
     });
-    const result = await handleGetBook(GROUP, {}, chain);
+    const result = await handleGetBook(GROUP, {}, chain, makeWallets([GROUP_WALLET]));
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
       balance_sompi: "1000000000",
@@ -321,35 +353,115 @@ describe("handleGetBook", () => {
           proof_url: `https://explorer-tn10.kaspa.org/txs/${"c".repeat(64)}`,
         },
       ],
+      group: { address: GROUP, name: "Plot", kind: "group" },
     });
+  });
+
+  it("enriches rows with the registered counterparty's name and kind", async () => {
+    const { chain } = makeChain({
+      getFullTransactions: vi.fn(async () => [
+        tx({
+          txid: "c".repeat(64),
+          block_time: 300,
+          inputs: [
+            { address: ALICE, amount: 30 },
+            { address: BOB, amount: 70 },
+          ],
+          outputs: [{ address: GROUP, amount: 100 }],
+        }),
+      ]),
+    });
+    const result = await handleGetBook(
+      GROUP,
+      {},
+      chain,
+      makeWallets([GROUP_WALLET, ALICE_WALLET, BOB_WALLET]),
+    );
+    expect(result.status).toBe(200);
+    const [row] = (result.body as Book).rows;
+    expect(row).toMatchObject({
+      other_address: ALICE,
+      other_name: "Amina",
+      other_kind: "user",
+    });
+  });
+
+  it("leaves unregistered counterparties as their address", async () => {
+    const { chain } = makeChain({
+      getFullTransactions: vi.fn(async () => [
+        tx({
+          txid: "c".repeat(64),
+          block_time: 300,
+          inputs: [{ address: ALICE, amount: 30 }],
+          outputs: [{ address: GROUP, amount: 30 }],
+        }),
+      ]),
+    });
+    const result = await handleGetBook(GROUP, {}, chain, makeWallets([GROUP_WALLET]));
+    expect(result.status).toBe(200);
+    const [row] = (result.body as Book).rows;
+    expect(row).not.toHaveProperty("other_name");
+    expect(row).not.toHaveProperty("other_kind");
+    expect(row?.other_address).toBe(ALICE);
   });
 
   it("fetches balance and transactions together", async () => {
     const { chain, getBalance, getFullTransactions } = makeChain();
-    await handleGetBook(GROUP, {}, chain);
+    await handleGetBook(GROUP, {}, chain, makeWallets([GROUP_WALLET]));
     expect(getBalance).toHaveBeenCalledWith(GROUP);
     expect(getFullTransactions).toHaveBeenCalled();
   });
 
   it("returns 400 when the code is missing", async () => {
     const { chain } = makeChain();
-    const result = await handleGetBook(undefined, {}, chain);
+    const result = await handleGetBook(undefined, {}, chain, makeWallets([GROUP_WALLET]));
     expect(result.status).toBe(400);
     expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
   it("returns 422 invalid for an invalid code", async () => {
     const { chain } = makeChain();
-    const result = await handleGetBook(INVALID_CODE, {}, chain);
+    const result = await handleGetBook(INVALID_CODE, {}, chain, makeWallets([GROUP_WALLET]));
     expect(result.status).toBe(422);
     expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
   it("returns 422 validation for a non-positive limit or negative offset", async () => {
     const { chain } = makeChain();
-    expect((await handleGetBook(GROUP, { limit: 0 }, chain)).status).toBe(422);
-    expect((await handleGetBook(GROUP, { limit: -1 }, chain)).status).toBe(422);
-    expect((await handleGetBook(GROUP, { offset: -1 }, chain)).status).toBe(422);
+    const wallets = makeWallets([GROUP_WALLET]);
+    expect((await handleGetBook(GROUP, { limit: 0 }, chain, wallets)).status).toBe(422);
+    expect((await handleGetBook(GROUP, { limit: -1 }, chain, wallets)).status).toBe(422);
+    expect((await handleGetBook(GROUP, { offset: -1 }, chain, wallets)).status).toBe(422);
+  });
+
+  it("refuses a code that is not a registered group with the exact copy", async () => {
+    const { chain } = makeChain();
+    const result = await handleGetBook(GROUP, {}, chain, makeWallets([]));
+    expect(result.status).toBe(422);
+    expect(result.body).toEqual({
+      error: { kind: "invalid", message: UNREGISTERED_GROUP_COPY },
+    });
+  });
+
+  it("refuses a registered user wallet the same way", async () => {
+    const { chain } = makeChain();
+    const result = await handleGetBook(
+      GROUP,
+      {},
+      chain,
+      makeWallets([{ address: GROUP, name: "Amina", kind: "user" }]),
+    );
+    expect(result.status).toBe(422);
+    expect(result.body).toEqual({
+      error: { kind: "invalid", message: UNREGISTERED_GROUP_COPY },
+    });
+  });
+
+  it("does not touch the chain when the code is not a registered group", async () => {
+    const { chain, getBalance, getFullTransactions } = makeChain();
+    await handleGetBook(GROUP, {}, chain, makeWallets([]));
+    expect(getBalance).not.toHaveBeenCalled();
+    expect(getFullTransactions).not.toHaveBeenCalled();
   });
 
   it("maps an upstream rejection to a structured error", async () => {
@@ -358,7 +470,7 @@ describe("handleGetBook", () => {
         throw new UpstreamError("upstream down", 503, "unavailable", { error: "busy" });
       }),
     });
-    const result = await handleGetBook(GROUP, {}, chain);
+    const result = await handleGetBook(GROUP, {}, chain, makeWallets([GROUP_WALLET]));
     expect(result.status).toBe(503);
     expect(result.body).toEqual({
       error: { kind: "upstream", source: "unavailable", message: "busy" },

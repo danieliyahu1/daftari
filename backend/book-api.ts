@@ -1,5 +1,5 @@
 import { getNetworkConfig, proofUrl } from "../shared/network";
-import type { NetworkConfig } from "../shared/types";
+import type { NetworkConfig, Wallet } from "../shared/types";
 import type { Book, BookDirection, BookRow } from "../shared/types";
 import { AppError, requiredStr, toRouteResult, validInt, validUint } from "./errors";
 import type { RouteResult } from "./errors";
@@ -15,6 +15,13 @@ export interface BookChain {
     opts: { limit: number; offset: number },
   ): Promise<TxModel[]>;
 }
+
+export interface BookWalletResolver {
+  get(address: string): Wallet | null;
+  resolveMany(addresses: string[]): Wallet[];
+}
+
+export const UNREGISTERED_GROUP_COPY = "This isn't a registered group.";
 
 export interface GetBookInput {
   limit?: unknown;
@@ -175,22 +182,44 @@ export function bookRowsForPage(
     );
 }
 
+// A group that does not exist in the wallet registry. Fail closed: without a
+// resolver, no code is a registered group, so nothing is served as a book.
+const NO_WALLETS: BookWalletResolver = {
+  get: () => null,
+  resolveMany: () => [],
+};
+
 export async function handleGetBook(
   code: unknown,
   input: GetBookInput = {},
   chain: BookChain = new KaspaClient(),
+  wallets: BookWalletResolver = NO_WALLETS,
 ): Promise<RouteResult> {
   try {
     const address = requireCode(code);
     const { limit, offset } = parsePagination(input);
+    const group = wallets.get(address);
+    if (group === null || group.kind !== "group") {
+      logger.warn("book refused", { address, reason: "not-a-registered-group" });
+      throw new AppError("invalid", UNREGISTERED_GROUP_COPY);
+    }
     const network = getNetworkConfig();
     const [balance, txs] = await Promise.all([
       chain.getBalance(address),
       chain.getFullTransactions(address, { limit, offset }),
     ]);
+    const rows = bookRowsForPage(address, txs, network);
+    const resolved = wallets.resolveMany(rows.map((row) => row.other_address));
+    const byAddress = new Map(resolved.map((wallet) => [wallet.address, wallet]));
     const book: Book = {
       balance_sompi: toSompi(balance.balance).toString(),
-      rows: bookRowsForPage(address, txs, network),
+      rows: rows.map((row) => {
+        const counterparty = byAddress.get(row.other_address);
+        return counterparty !== undefined
+          ? { ...row, other_name: counterparty.name, other_kind: counterparty.kind }
+          : row;
+      }),
+      group: { address: group.address, name: group.name, kind: group.kind },
     };
     logger.info("book fetched", {
       address,

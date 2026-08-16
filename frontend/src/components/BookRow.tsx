@@ -17,9 +17,20 @@ export function BookRow({ row }: BookRowProps): JSX.Element {
         >
           {sign}{sompiToKas(row.amount_sompi)} KAS
         </span>
-        <span className="book-party mono" title={row.other_address}>
-          {shortAddress(row.other_address)}
-        </span>
+        {row.other_name ? (
+          <span className="book-party">
+            <span className="book-party-name" title={row.other_address}>
+              {row.other_name}
+            </span>
+            <span className="kind-mark" data-testid="book-party-kind">
+              {row.other_kind === 'group' ? 'group' : 'person'}
+            </span>
+          </span>
+        ) : (
+          <span className="book-party mono" title={row.other_address} data-testid="book-party-address">
+            {shortAddress(row.other_address)}
+          </span>
+        )}
       </div>
       <div className="book-row-meta">
         <span className="book-date" data-testid="book-date">

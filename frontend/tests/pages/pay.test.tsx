@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from '../../src/components/Toaster'
 import { BookPage } from '../../src/pages/BookPage'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
-import { CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle } from '../helpers'
+import { bookStub as bookStubBody, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle } from '../helpers'
 
 const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`
@@ -28,7 +28,7 @@ function renderBookWithWallet(): void {
 function bookStub(): void {
   stubApi({
     [BOOK_PATH]: {
-      body: { balance_sompi: '0', rows: [] },
+      body: bookStubBody(),
     },
   })
 }
@@ -54,7 +54,7 @@ describe('PayDialog pay-in flow', () => {
 
   it('walks amount → review → approve → signed → finalize → recorded', async () => {
     stubApi({
-      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [BOOK_PATH]: { body: bookStubBody() },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
       [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })
@@ -96,7 +96,7 @@ describe('PayDialog pay-in flow', () => {
 
   it('shows a still-confirming panel with an explorer link when acceptance is pending', async () => {
     stubApi({
-      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [BOOK_PATH]: { body: bookStubBody() },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
       [FINALIZE]: {
         body: {
@@ -163,7 +163,7 @@ describe('PayDialog pay-in flow', () => {
 
   it('shows the failure copy when the payment cannot be afforded', async () => {
     stubApi({
-      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [BOOK_PATH]: { body: bookStubBody() },
       [PREPARE]: {
         status: 422,
         body: { error: { kind: 'policy', message: 'Insufficient funds' } },
@@ -192,7 +192,7 @@ describe('PayDialog pay-in flow', () => {
 
   it('shows the failure copy when the payment does not go through', async () => {
     stubApi({
-      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [BOOK_PATH]: { body: bookStubBody() },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
       [FINALIZE]: {
         status: 422,
@@ -216,10 +216,10 @@ describe('PayDialog pay-in flow', () => {
   })
 
   it('shows an error panel when the network fails during prepare', async () => {
-    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } } })
+    stubApi({ [BOOK_PATH]: { body: bookStubBody() } })
     global.fetch = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).includes('/api/payments/prepare')) throw new TypeError('Failed to fetch')
-      return new Response(JSON.stringify({ balance_sompi: '0', rows: [] }), { status: 200 })
+      return new Response(JSON.stringify(bookStubBody()), { status: 200 })
     })
     renderBookWithWallet()
     await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
@@ -237,7 +237,7 @@ describe('PayDialog pay-in flow', () => {
 
   it('surfaces a signing failure instead of silently returning to review', async () => {
     stubApi({
-      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [BOOK_PATH]: { body: bookStubBody() },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
       [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })
@@ -264,7 +264,7 @@ describe('PayDialog pay-in flow', () => {
 
   it('treats a declined signing as cancelled and never finalizes', async () => {
     stubApi({
-      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [BOOK_PATH]: { body: bookStubBody() },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
       [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })

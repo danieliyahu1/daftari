@@ -69,7 +69,11 @@ function setupBackend(options: { named?: boolean } = {}): void {
       return json(200, { outcome: 'left' })
     }
     if (method === 'GET' && path.startsWith('/api/chamas/') && path.endsWith('/book')) {
-      return json(200, { balance_sompi: balance.toString(), rows: [...rows] })
+      return json(200, {
+        balance_sompi: balance.toString(),
+        rows: [...rows],
+        group: { address: CHAMA_ADDRESS, name: 'Plot', kind: 'group' },
+      })
     }
     if (method === 'POST' && path === '/api/payments/prepare') {
       return json(200, { signing_template: '{"version":0}' })

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { BookPage } from '../../src/pages/BookPage'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
-import { CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
+import { bookStub, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
 const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`
@@ -47,22 +47,59 @@ describe('BookPage', () => {
   })
 
   it('shows the loading state while reading the book', async () => {
-    stubApi({ [BOOK_PATH]: { body: () => ({ balance_sompi: '0', rows: [] }) } })
+    stubApi({ [BOOK_PATH]: { body: () => bookStub() } })
     renderBook()
     expect(screen.getByTestId('book-loading')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
   })
 
   it('pins the group balance on top', async () => {
-    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '5000000000', rows: [] } } })
+    stubApi({ [BOOK_PATH]: { body: bookStub({ balance_sompi: '5000000000' }) } })
     renderBook()
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
     expect(screen.getByText('The group has')).toBeInTheDocument()
     expect(screen.getByTestId('book-balance')).toHaveTextContent('50 KAS')
   })
 
+  it('shows the registered group name in the book header', async () => {
+    stubApi({ [BOOK_PATH]: { body: bookStub({ balance_sompi: '0', rows: [] }) } })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-group')).toBeInTheDocument())
+    expect(screen.getByTestId('book-group')).toHaveTextContent('Plot')
+    expect(screen.getByTestId('book-group-kind')).toHaveTextContent('group')
+  })
+
+  it('shows a registered counterparty by name with a person mark in the book', async () => {
+    stubApi({
+      [BOOK_PATH]: {
+        body: bookStub({
+          rows: [makeRow({ other_name: 'Amina', other_kind: 'user' })],
+        }),
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
+    const row = screen.getByTestId('book-row')
+    expect(within(row).getByText('Amina')).toBeInTheDocument()
+    expect(within(row).getByTestId('book-party-kind')).toHaveTextContent('person')
+  })
+
+  it('refuses an unregistered group with the exact copy', async () => {
+    stubApi({
+      [BOOK_PATH]: {
+        status: 422,
+        body: { error: { kind: 'invalid', message: "This isn't a registered group." } },
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-error')).toBeInTheDocument())
+    expect(
+      screen.getByText("This isn't a registered group."),
+    ).toBeInTheDocument()
+  })
+
   it('shows the empty-book copy while keeping the balance', async () => {
-    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } } })
+    stubApi({ [BOOK_PATH]: { body: bookStub() } })
     renderBook()
     await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument())
     expect(
@@ -72,7 +109,7 @@ describe('BookPage', () => {
   })
 
   it('renders each row with direction, amount, party, date, and proof', async () => {
-    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '100000000', rows: [makeRow()] } } })
+    stubApi({ [BOOK_PATH]: { body: bookStub({ balance_sompi: '100000000', rows: [makeRow()] }) } })
     renderBook()
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
@@ -88,7 +125,7 @@ describe('BookPage', () => {
   it('shows the out direction for money going out', async () => {
     stubApi({
       [BOOK_PATH]: {
-        body: { balance_sompi: '0', rows: [makeRow({ direction: 'out' })] },
+        body: bookStub({ rows: [makeRow({ direction: 'out' })] }),
       },
     })
     renderBook()
@@ -108,7 +145,7 @@ describe('BookPage', () => {
       [BOOK_PATH]: {
         body: () => {
           calls.push(String(calls.length))
-          return { balance_sompi: '0', rows: calls.length === 1 ? pageOne : pageTwo }
+          return bookStub({ rows: calls.length === 1 ? pageOne : pageTwo })
         },
       },
     })
@@ -130,7 +167,7 @@ describe('BookPage', () => {
             failed = true
             return new Response('', { status: 503 })
           }
-          return { balance_sompi: '0', rows: [] }
+          return bookStub()
         },
       },
     })
@@ -141,7 +178,7 @@ describe('BookPage', () => {
   })
 
   it('links back to the chamas list', async () => {
-    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } } })
+    stubApi({ [BOOK_PATH]: { body: bookStub() } })
     renderBook()
     await waitFor(() => expect(screen.getByTestId('back-link')).toBeInTheDocument())
     expect(screen.getByTestId('back-link')).toHaveTextContent('Your chamas')
@@ -150,7 +187,7 @@ describe('BookPage', () => {
   it('hides the pay entry point on the wrong network', async () => {
     const mock = installConnectedKastle()
     ;(mock.getNetwork as ReturnType<typeof vi.fn>).mockResolvedValue('mainnet')
-    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } } })
+    stubApi({ [BOOK_PATH]: { body: bookStub() } })
     renderBook()
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
     expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()

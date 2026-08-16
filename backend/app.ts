@@ -95,7 +95,7 @@ export function createApp({ store, walletStore, bookChain, paymentChain, confirm
   });
 
   app.get("/api/chamas/:code/book", async (req: Request, res: Response) => {
-    const result = await handleGetBook(req.params.code, req.query, bookChain);
+    const result = await handleGetBook(req.params.code, req.query, bookChain, walletStore);
     send(res, result);
   });
 

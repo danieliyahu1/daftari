@@ -43,4 +43,39 @@ describe('BookRow', () => {
     expect(screen.getByTestId('book-amount')).toHaveTextContent('−1 KAS')
     expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--out')
   })
+
+  it('shows a registered counterparty by name with a person mark', () => {
+    render(
+      <ul>
+        <BookRowComponent
+          row={makeRow({ other_name: 'Amina', other_kind: 'user' })}
+        />
+      </ul>,
+    )
+    expect(screen.getByText('Amina')).toBeInTheDocument()
+    expect(screen.getByTestId('book-party-kind')).toHaveTextContent('person')
+    expect(screen.queryByTestId('book-party-address')).not.toBeInTheDocument()
+  })
+
+  it('marks a registered group counterparty as a group', () => {
+    render(
+      <ul>
+        <BookRowComponent
+          row={makeRow({ other_name: 'Kamau Traders', other_kind: 'group' })}
+        />
+      </ul>,
+    )
+    expect(screen.getByText('Kamau Traders')).toBeInTheDocument()
+    expect(screen.getByTestId('book-party-kind')).toHaveTextContent('group')
+  })
+
+  it('falls back to the raw address when the counterparty is not registered', () => {
+    render(
+      <ul>
+        <BookRowComponent row={makeRow()} />
+      </ul>,
+    )
+    expect(screen.getByTestId('book-party-address')).toHaveTextContent('kaspat...ukdl')
+    expect(screen.queryByTestId('book-party-kind')).not.toBeInTheDocument()
+  })
 })

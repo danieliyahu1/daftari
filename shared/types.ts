@@ -29,10 +29,18 @@ export interface Wallet {
 
 export type BookDirection = "in" | "out";
 
+export interface BookGroup {
+  address: string;
+  name: string;
+  kind: WalletKind;
+}
+
 export interface BookRow {
   direction: BookDirection;
   amount_sompi: string;
   other_address: string;
+  other_name?: string;
+  other_kind?: WalletKind;
   date: number;
   txid: string;
   proof_url: string;
@@ -41,6 +49,7 @@ export interface BookRow {
 export interface Book {
   balance_sompi: string;
   rows: BookRow[];
+  group: BookGroup;
 }
 
 export type PaymentOutcome = "recorded" | "failed";

@@ -258,13 +258,49 @@ describe("HTTP API", () => {
     expect(body.error.kind).toBe("invalid");
   });
 
-  it("reads the book from the chain for a valid code", async () => {
+  it("refuses an unregistered group code on the book with the exact copy", async () => {
     testServer = await startServer();
     const response = await fetch(
       `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book`,
     );
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: { kind: "invalid", message: "This isn't a registered group." },
+    });
+  });
+
+  it("refuses a registered user wallet as a chama on the book", async () => {
+    testServer = await startServer();
+    await post(testServer.base, "/api/wallets/register", {
+      address: VALID_CODE,
+      name: "Amina",
+      kind: "user",
+    });
+    const response = await fetch(
+      `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book`,
+    );
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { error: { message: string } }).error.message).toBe(
+      "This isn't a registered group.",
+    );
+  });
+
+  it("reads the book from the chain for a registered group and enriches it", async () => {
+    testServer = await startServer();
+    await post(testServer.base, "/api/wallets/register", {
+      address: VALID_CODE,
+      name: "Plot",
+      kind: "group",
+    });
+    const response = await fetch(
+      `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book`,
+    );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ balance_sompi: "12500000000", rows: [] });
+    expect(await response.json()).toEqual({
+      balance_sompi: "12500000000",
+      rows: [],
+      group: { address: VALID_CODE, name: "Plot", kind: "group" },
+    });
   });
 
   it("rejects a payment prepare with missing fields", async () => {
