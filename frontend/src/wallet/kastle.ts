@@ -97,7 +97,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   })
 }
 
-const USER_REJECTION_PATTERN = /rejected|cancelled|canceled|denied|timeout/i
+const USER_REJECTION_PATTERN = /rejected|cancelled|canceled|denied|timed out|timeout/i
 
 export function isUserRejection(err: unknown): boolean {
   if (err instanceof Error) return USER_REJECTION_PATTERN.test(err.message)

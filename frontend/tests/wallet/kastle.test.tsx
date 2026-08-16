@@ -289,6 +289,10 @@ describe('isUserRejection', () => {
     expect(isUserRejection(new Error('connection denied'))).toBe(true)
   })
 
+  it('recognises a timeout while waiting for the user', () => {
+    expect(isUserRejection(new Error('The request timed out. Try again.'))).toBe(true)
+  })
+
   it('recognises error code 4001 on a thrown object', () => {
     expect(isUserRejection({ code: 4001, message: 'denied' })).toBe(true)
   })
