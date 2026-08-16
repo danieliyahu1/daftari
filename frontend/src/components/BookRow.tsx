@@ -3,9 +3,11 @@ import { formatDate, shortAddress, sompiToKas } from '../format'
 
 interface BookRowProps {
   row: BookRowType
+  onAdd?: () => void
+  addBusy?: boolean
 }
 
-export function BookRow({ row }: BookRowProps): JSX.Element {
+export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Element {
   const isIn = row.direction === 'in'
   const sign = isIn ? '+' : '−'
   return (
@@ -45,6 +47,16 @@ export function BookRow({ row }: BookRowProps): JSX.Element {
         >
           Open the permanent record
         </a>
+        {onAdd ? (
+          <button
+            className="button button-sm button-secondary add-member"
+            onClick={onAdd}
+            disabled={addBusy}
+            data-testid="add-member"
+          >
+            {addBusy ? 'Adding...' : 'Add to chama'}
+          </button>
+        ) : null}
       </div>
     </li>
   )

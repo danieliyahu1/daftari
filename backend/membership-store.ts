@@ -2,17 +2,11 @@ import { DatabaseSync } from "node:sqlite";
 import type { Membership } from "../shared/types";
 import { logger } from "./logger";
 
-export type JoinOutcome = "joined" | "already-member";
-
-export interface JoinResult {
-  outcome: JoinOutcome;
-  membership: Membership;
-}
-
 export interface MembershipStore {
   listForUser(userAddress: string): Membership[];
-  join(userAddress: string, chamaAddress: string): JoinResult;
-  leave(userAddress: string, chamaAddress: string): boolean;
+  listForChama(chamaAddress: string): Membership[];
+  addMember(chamaAddress: string, userAddress: string): Membership;
+  isMember(chamaAddress: string, userAddress: string): boolean;
   close(): void;
 }
 
@@ -52,42 +46,38 @@ export class SqliteMembershipStore implements MembershipStore {
         "SELECT user_address, chama_address, created_at FROM memberships WHERE user_address = ? ORDER BY created_at ASC, chama_address ASC",
       )
       .all(userAddress);
-    logger.debug("memberships listed", { userAddress, count: rows.length });
+    logger.debug("memberships listed for user", { userAddress, count: rows.length });
     return rows.map((row) => toMembership(row));
   }
 
-  join(userAddress: string, chamaAddress: string): JoinResult {
+  listForChama(chamaAddress: string): Membership[] {
+    const rows = this.db
+      .prepare(
+        "SELECT user_address, chama_address, created_at FROM memberships WHERE chama_address = ? ORDER BY created_at ASC, user_address ASC",
+      )
+      .all(chamaAddress);
+    logger.debug("memberships listed for chama", { chamaAddress, count: rows.length });
+    return rows.map((row) => toMembership(row));
+  }
+
+  addMember(chamaAddress: string, userAddress: string): Membership {
     const created_at = this.now();
-    const info = this.db
+    this.db
       .prepare(
         "INSERT OR IGNORE INTO memberships (user_address, chama_address, created_at) VALUES (?, ?, ?)",
       )
       .run(userAddress, chamaAddress, created_at);
-
-    if (Number(info.changes) === 0) {
-      const row = this.db
-        .prepare(
-          "SELECT user_address, chama_address, created_at FROM memberships WHERE user_address = ? AND chama_address = ?",
-        )
-        .get(userAddress, chamaAddress) as Record<string, unknown>;
-      return { outcome: "already-member", membership: toMembership(row) };
-    }
-    return {
-      outcome: "joined",
-      membership: { user_address: userAddress, chama_address: chamaAddress, created_at },
-    };
+    logger.info("member added to chama", { chamaAddress, userAddress });
+    return { user_address: userAddress, chama_address: chamaAddress, created_at };
   }
 
-  leave(userAddress: string, chamaAddress: string): boolean {
-    const info = this.db
-      .prepare("DELETE FROM memberships WHERE user_address = ? AND chama_address = ?")
-      .run(userAddress, chamaAddress);
-    logger.debug("membership deleted", {
-      userAddress,
-      chamaAddress,
-      removed: Number(info.changes) > 0,
-    });
-    return Number(info.changes) > 0;
+  isMember(chamaAddress: string, userAddress: string): boolean {
+    const row = this.db
+      .prepare(
+        "SELECT 1 FROM memberships WHERE user_address = ? AND chama_address = ?",
+      )
+      .get(userAddress, chamaAddress);
+    return row !== undefined;
   }
 
   close(): void {

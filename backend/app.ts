@@ -12,9 +12,8 @@ import type { RouteResult } from "./errors";
 import { logger } from "./logger";
 import type { MembershipStore } from "./membership-store";
 import {
-  handleJoinMembership,
-  handleLeaveMembership,
-  handleListMemberships,
+  handleAddMember,
+  handleGetHome,
 } from "./memberships-api";
 import { handleFinalizePayment, handlePreparePayment } from "./payments-api";
 import type { PaymentChain, ConfirmPolicy } from "./payments-api";
@@ -75,15 +74,13 @@ export function createApp({ store, walletStore, bookChain, paymentChain, confirm
   });
 
   app.get("/api/memberships", (req: Request, res: Response) => {
-    send(res, handleListMemberships(store, req.query.user));
+    send(res, handleGetHome(store, walletStore, req.query.user));
   });
 
   app.post("/api/memberships", (req: Request, res: Response) => {
-    send(res, handleJoinMembership(store, req.body ?? {}));
-  });
-
-  app.delete("/api/memberships", (req: Request, res: Response) => {
-    send(res, handleLeaveMembership(store, req.body ?? {}));
+    void handleAddMember(store, walletStore, req.body ?? {}, bookChain).then((result) =>
+      send(res, result),
+    );
   });
 
   app.post("/api/wallets/register", (req: Request, res: Response) => {
@@ -95,7 +92,14 @@ export function createApp({ store, walletStore, bookChain, paymentChain, confirm
   });
 
   app.get("/api/chamas/:code/book", async (req: Request, res: Response) => {
-    const result = await handleGetBook(req.params.code, req.query, bookChain, walletStore);
+    const result = await handleGetBook(
+      req.params.code,
+      req.query,
+      bookChain,
+      walletStore,
+      store,
+      req.query.user,
+    );
     send(res, result);
   });
 

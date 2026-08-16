@@ -1,36 +1,42 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { BookGroup, Home, RosterMember } from '../../../shared/types'
 import { apiClient, ApiClientError } from '../api/client'
-import { ConfirmDialog } from '../components/ConfirmDialog'
 import { EmptyState } from '../components/EmptyState'
 import { GroupCard } from '../components/GroupCard'
-import { JoinForm } from '../components/JoinForm'
 import { shortAddress } from '../format'
 import { logger } from '../logger'
 import { useRegistry } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletProvider'
 
-const NO_GROUPS_COPY = 'Join your first group — enter the code your group shared with you.'
+const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
+const NO_MEMBERS_COPY = 'Your people appear here as they join.'
+
+function memberLabel(member: RosterMember): string {
+  return member.name ?? shortAddress(member.address, 10, 6)
+}
 
 export function HomePage(): JSX.Element {
   const wallet = useWallet()
   const registry = useRegistry()
-  const [memberships, setMemberships] = useState<{ chama_address: string; created_at: number }[]>([])
+  const [home, setHome] = useState<Home | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [removing, setRemoving] = useState<string | null>(null)
-  const [removingBusy, setRemovingBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!wallet.address) return
     setLoading(true)
     setLoadError(null)
     try {
-      const result = await apiClient.listMemberships(wallet.address)
-      setMemberships(result.memberships)
-      logger.info('memberships loaded', { count: result.memberships.length })
+      const result = await apiClient.getHome(wallet.address)
+      setHome(result)
+      logger.info('home loaded', {
+        kind: result.identity?.kind ?? null,
+        members: result.members.length,
+        chamas: result.chamas.length,
+      })
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
-      logger.warn('failed to load memberships', { error: message })
+      logger.warn('failed to load home', { error: message })
       setLoadError(message)
     } finally {
       setLoading(false)
@@ -41,30 +47,6 @@ export function HomePage(): JSX.Element {
     void load()
   }, [load])
 
-  const handleJoined = useCallback(() => {
-    void load()
-  }, [load])
-
-  const handleRemove = useCallback(async () => {
-    if (!removing || !wallet.address) return
-    setRemovingBusy(true)
-    try {
-      await apiClient.leaveMembership({
-        user_address: wallet.address,
-        chama_address: removing,
-      })
-      setMemberships((prev) => prev.filter((m) => m.chama_address !== removing))
-      setRemoving(null)
-      logger.info('group removed', { chamaAddress: removing })
-    } catch (err) {
-      const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
-      logger.warn('failed to remove group', { error: message })
-      setLoadError(message)
-    } finally {
-      setRemovingBusy(false)
-    }
-  }, [removing, wallet.address])
-
   if (wallet.status !== 'connected' || !wallet.address) {
     return (
       <EmptyState title="Connect your wallet to see your chamas.">
@@ -72,6 +54,8 @@ export function HomePage(): JSX.Element {
       </EmptyState>
     )
   }
+
+  const isGroup = home?.identity?.kind === 'group'
 
   return (
     <div className="home" data-testid="home">
@@ -104,38 +88,64 @@ export function HomePage(): JSX.Element {
             Try again
           </button>
         </div>
-      ) : memberships.length === 0 ? (
-        <section className="empty" data-testid="home-empty">
-          <p className="empty-title">{NO_GROUPS_COPY}</p>
-          <JoinForm userAddress={wallet.address} onJoined={handleJoined} />
-        </section>
+      ) : isGroup ? (
+        <GroupRoster members={home?.members ?? []} />
       ) : (
-        <section>
-          <h2 className="section-title">Your chamas</h2>
-          <ul className="group-list">
-            {memberships.map((membership) => (
-              <GroupCard
-                key={membership.chama_address}
-                code={membership.chama_address}
-                createdAt={membership.created_at}
-                onRemove={setRemoving}
-              />
-            ))}
-          </ul>
-          <JoinForm userAddress={wallet.address} onJoined={handleJoined} />
-        </section>
-      )}
-
-      {removing !== null && (
-        <ConfirmDialog
-          title="Remove this group?"
-          message={`Remove ${shortAddress(removing, 10, 6)} from your home screen? The book is still there — you can rejoin with the code.`}
-          confirmLabel="Remove"
-          busy={removingBusy}
-          onConfirm={() => void handleRemove()}
-          onCancel={() => setRemoving(null)}
-        />
+        <PersonChamas chamas={home?.chamas ?? []} />
       )}
     </div>
+  )
+}
+
+function GroupRoster({ members }: { members: RosterMember[] }): JSX.Element {
+  if (members.length === 0) {
+    return (
+      <section className="empty" data-testid="home-empty">
+        <EmptyState title={NO_MEMBERS_COPY}>
+          <p className="empty-sub">People appear here once they join your chama.</p>
+        </EmptyState>
+      </section>
+    )
+  }
+  return (
+    <section>
+      <h2 className="section-title">Your people</h2>
+      <ul className="roster" data-testid="roster">
+        {members.map((member) => (
+          <li className="roster-member" key={member.address} data-testid="roster-member">
+            <span className="roster-member-name" title={member.address}>
+              {memberLabel(member)}
+            </span>
+            {member.kind ? (
+              <span className="kind-mark" data-testid="roster-member-kind">
+                {member.kind === 'group' ? 'group' : 'person'}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function PersonChamas({ chamas }: { chamas: BookGroup[] }): JSX.Element {
+  if (chamas.length === 0) {
+    return (
+      <section className="empty" data-testid="home-empty">
+        <EmptyState title={NO_CHAMAS_COPY}>
+          <p className="empty-sub">{'A chama you\u2019re part of will appear here.'}</p>
+        </EmptyState>
+      </section>
+    )
+  }
+  return (
+    <section>
+      <h2 className="section-title">Your chamas</h2>
+      <ul className="group-list">
+        {chamas.map((chama) => (
+          <GroupCard key={chama.address} code={chama.address} name={chama.name} />
+        ))}
+      </ul>
+    </section>
   )
 }

@@ -78,4 +78,37 @@ describe('BookRow', () => {
     expect(screen.getByTestId('book-party-address')).toHaveTextContent('kaspat...ukdl')
     expect(screen.queryByTestId('book-party-kind')).not.toBeInTheDocument()
   })
+
+  it('renders an Add to chama action when onAdd is provided and reports the click', () => {
+    const onAdd = vi.fn()
+    render(
+      <ul>
+        <BookRowComponent row={makeRow()} onAdd={onAdd} />
+      </ul>,
+    )
+    const add = screen.getByTestId('add-member')
+    expect(add).toHaveTextContent('Add to chama')
+    add.click()
+    expect(onAdd).toHaveBeenCalled()
+  })
+
+  it('shows the busy copy while adding', () => {
+    render(
+      <ul>
+        <BookRowComponent row={makeRow()} onAdd={() => {}} addBusy />
+      </ul>,
+    )
+    const add = screen.getByTestId('add-member')
+    expect(add).toHaveTextContent('Adding...')
+    expect(add).toBeDisabled()
+  })
+
+  it('renders no add action when onAdd is absent', () => {
+    render(
+      <ul>
+        <BookRowComponent row={makeRow()} />
+      </ul>,
+    )
+    expect(screen.queryByTestId('add-member')).not.toBeInTheDocument()
+  })
 })

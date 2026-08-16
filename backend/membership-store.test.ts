@@ -24,61 +24,62 @@ describe("SqliteMembershipStore", () => {
   it("starts empty", () => {
     const s = store();
     expect(s.listForUser(USER)).toEqual([]);
+    expect(s.listForChama(CHAMA)).toEqual([]);
   });
 
-  it("joins and lists a membership with its created_at", () => {
+  it("adds a member and lists it for both sides", () => {
     const s = store();
-    const result = s.join(USER, CHAMA);
+    const result = s.addMember(CHAMA, USER);
 
     expect(result).toEqual({
-      outcome: "joined",
-      membership: { user_address: USER, chama_address: CHAMA, created_at: 1_000 },
+      user_address: USER,
+      chama_address: CHAMA,
+      created_at: 1_000,
     });
     expect(s.listForUser(USER)).toEqual([
       { user_address: USER, chama_address: CHAMA, created_at: 1_000 },
     ]);
-  });
-
-  it("lists memberships ordered by created_at", () => {
-    let tick = 1_000;
-    const s = new SqliteMembershipStore({ now: () => tick++ });
-    stores.push(s);
-    s.join(USER, OTHER_CHAMA);
-    s.join(USER, CHAMA);
-
-    expect(s.listForUser(USER).map((m) => m.chama_address)).toEqual([
-      OTHER_CHAMA,
-      CHAMA,
+    expect(s.listForChama(CHAMA)).toEqual([
+      { user_address: USER, chama_address: CHAMA, created_at: 1_000 },
     ]);
   });
 
-  it("is idempotent on duplicate join", () => {
-    const s = store();
-    const first = s.join(USER, CHAMA);
-    const second = s.join(USER, CHAMA);
+  it("lists a chama's members ordered by created_at", () => {
+    let tick = 1_000;
+    const s = new SqliteMembershipStore({ now: () => tick++ });
+    stores.push(s);
+    s.addMember(CHAMA, OTHER_USER);
+    s.addMember(CHAMA, USER);
 
-    expect(second.outcome).toBe("already-member");
-    expect(second.membership).toEqual(first.membership);
-    expect(s.listForUser(USER)).toHaveLength(1);
+    expect(s.listForChama(CHAMA).map((m) => m.user_address)).toEqual([
+      OTHER_USER,
+      USER,
+    ]);
   });
 
-  it("scopes memberships per user", () => {
+  it("is idempotent on duplicate add", () => {
     const s = store();
-    s.join(USER, CHAMA);
+    s.addMember(CHAMA, USER);
+    const second = s.addMember(CHAMA, USER);
 
+    expect(second).toEqual(s.addMember(CHAMA, USER));
+    expect(s.listForChama(CHAMA)).toHaveLength(1);
+  });
+
+  it("scopes memberships per chama", () => {
+    const s = store();
+    s.addMember(CHAMA, USER);
+
+    expect(s.listForChama(OTHER_CHAMA)).toEqual([]);
     expect(s.listForUser(OTHER_USER)).toEqual([]);
   });
 
-  it("leave removes an existing membership and reports it", () => {
+  it("reports membership with isMember", () => {
     const s = store();
-    s.join(USER, CHAMA);
+    s.addMember(CHAMA, USER);
 
-    expect(s.leave(USER, CHAMA)).toBe(true);
-    expect(s.listForUser(USER)).toEqual([]);
-  });
-
-  it("leave on a missing membership is a no-op", () => {
-    const s = store();
-    expect(s.leave(USER, CHAMA)).toBe(false);
+    expect(s.isMember(CHAMA, USER)).toBe(true);
+    expect(s.isMember(CHAMA, OTHER_USER)).toBe(false);
+    expect(s.isMember(OTHER_CHAMA, USER)).toBe(false);
   });
 });

@@ -48,7 +48,10 @@ describe('PayDialog pay-in flow', () => {
     uninstallKastle()
     bookStub()
     renderBookWithWallet()
-    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument())
+    expect(
+      screen.getByText('Connect your wallet to see this chama.'),
+    ).toBeInTheDocument()
     expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
   })
 

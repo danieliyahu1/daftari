@@ -21,7 +21,16 @@ export interface BookWalletResolver {
   resolveMany(addresses: string[]): Wallet[];
 }
 
+export interface BookMembershipResolver {
+  isMember(chamaAddress: string, userAddress: string): boolean;
+}
+
 export const UNREGISTERED_GROUP_COPY = "This isn't a registered group.";
+export const MEMBER_ONLY_COPY = "Only members can see this chama.";
+
+const NO_MEMBERSHIPS: BookMembershipResolver = {
+  isMember: () => false,
+};
 
 export interface GetBookInput {
   limit?: unknown;
@@ -189,11 +198,47 @@ const NO_WALLETS: BookWalletResolver = {
   resolveMany: () => [],
 };
 
+const COUNTERPARTY_PAGE_SIZE = 50;
+const COUNTERPARTY_MAX_PAGES = 10;
+
+// Whether an address has transacted with the group — it appears as an input
+// or output party on any page of the group's transactions.
+export async function isCounterpartyOf(
+  chain: BookChain,
+  groupAddress: string,
+  address: string,
+): Promise<boolean> {
+  let offset = 0;
+  for (let page = 0; page < COUNTERPARTY_MAX_PAGES; page++) {
+    const txs = await chain.getFullTransactions(groupAddress, {
+      limit: COUNTERPARTY_PAGE_SIZE,
+      offset,
+    });
+    for (const tx of txs) {
+      const parties = new Set<string>();
+      for (const input of tx.inputs) {
+        const party = inputAddress(input);
+        if (party !== null) parties.add(party);
+      }
+      for (const output of tx.outputs) {
+        const party = outputAddress(output);
+        if (party !== null) parties.add(party);
+      }
+      if (parties.has(address)) return true;
+    }
+    if (txs.length < COUNTERPARTY_PAGE_SIZE) return false;
+    offset += COUNTERPARTY_PAGE_SIZE;
+  }
+  return false;
+}
+
 export async function handleGetBook(
   code: unknown,
   input: GetBookInput = {},
   chain: BookChain = new KaspaClient(),
   wallets: BookWalletResolver = NO_WALLETS,
+  memberships: BookMembershipResolver = NO_MEMBERSHIPS,
+  requester?: unknown,
 ): Promise<RouteResult> {
   try {
     const address = requireCode(code);
@@ -202,6 +247,10 @@ export async function handleGetBook(
     if (group === null || group.kind !== "group") {
       logger.warn("book refused", { address, reason: "not-a-registered-group" });
       throw new AppError("invalid", UNREGISTERED_GROUP_COPY);
+    }
+    if (requester !== address && !memberships.isMember(address, String(requester ?? ""))) {
+      logger.warn("book refused", { address, requester, reason: "not-a-member" });
+      throw new AppError("policy", MEMBER_ONLY_COPY);
     }
     const network = getNetworkConfig();
     const [balance, txs] = await Promise.all([
@@ -215,9 +264,13 @@ export async function handleGetBook(
       balance_sompi: toSompi(balance.balance).toString(),
       rows: rows.map((row) => {
         const counterparty = byAddress.get(row.other_address);
-        return counterparty !== undefined
-          ? { ...row, other_name: counterparty.name, other_kind: counterparty.kind }
-          : row;
+        return {
+          ...row,
+          ...(counterparty !== undefined
+            ? { other_name: counterparty.name, other_kind: counterparty.kind }
+            : {}),
+          other_is_member: memberships.isMember(address, row.other_address),
+        };
       }),
       group: { address: group.address, name: group.name, kind: group.kind },
     };

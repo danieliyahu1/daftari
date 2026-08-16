@@ -41,6 +41,7 @@ export interface BookRow {
   other_address: string;
   other_name?: string;
   other_kind?: WalletKind;
+  other_is_member?: boolean;
   date: number;
   txid: string;
   proof_url: string;
@@ -50,6 +51,18 @@ export interface Book {
   balance_sompi: string;
   rows: BookRow[];
   group: BookGroup;
+}
+
+export interface RosterMember {
+  address: string;
+  name?: string;
+  kind?: WalletKind;
+}
+
+export interface Home {
+  identity: Wallet | null;
+  members: RosterMember[];
+  chamas: BookGroup[];
 }
 
 export type PaymentOutcome = "recorded" | "failed";

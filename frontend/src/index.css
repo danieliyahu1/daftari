@@ -261,25 +261,12 @@ body {
   padding-top: 0.5rem;
 }
 
-.join-form {
-  margin-top: 1rem;
-}
-
 .join-form-label {
   display: block;
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--color-text-secondary);
   margin-bottom: 0.375rem;
-}
-
-.join-form-row {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.join-form-row .input {
-  flex: 1;
 }
 
 .naming-screen {
@@ -368,6 +355,34 @@ body {
   border-color: var(--color-text-secondary);
 }
 
+.roster {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.roster-member {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.roster-member-name {
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.add-member {
+  margin-top: 0.35rem;
+}
+
 .group-card-link {
   flex: 1;
   min-width: 0;
@@ -383,26 +398,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.group-card-date {
-  font-size: 0.72rem;
-  color: var(--color-text-secondary);
-}
-
-.group-card-remove {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.72rem;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: color 0.15s;
-}
-
-.group-card-remove:hover {
-  color: var(--color-error);
 }
 
 .empty {

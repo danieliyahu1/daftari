@@ -13,105 +13,63 @@ describe('createApiClient', () => {
     vi.restoreAllMocks()
   })
 
-  it('lists memberships for the connected address', async () => {
-    const memberships = [
-      { user_address: 'user', chama_address: 'chama', created_at: 1 },
-    ]
-    global.fetch = vi.fn(async () => jsonResponse(200, { memberships }))
+  it('loads the home for the connected address', async () => {
+    const home = { identity: null, members: [], chamas: [] }
+    global.fetch = vi.fn(async () => jsonResponse(200, home))
 
-    const result = await createApiClient().listMemberships('kaspatest:abc')
+    const result = await createApiClient().getHome('kaspatest:abc')
 
-    expect(result.memberships).toEqual(memberships)
+    expect(result).toEqual(home)
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/memberships?user=kaspatest%3Aabc',
       expect.objectContaining({ method: 'GET' }),
     )
   })
 
-  it('joins a chama with a POST and the addresses in the body', async () => {
-    global.fetch = vi.fn(async () => jsonResponse(201, { outcome: 'joined' }))
+  it('adds a member with a POST and the addresses in the body', async () => {
+    global.fetch = vi.fn(async () =>
+      jsonResponse(201, {
+        membership: { user_address: 'member', chama_address: 'chama', created_at: 1 },
+      }),
+    )
 
-    await createApiClient().joinMembership({
-      user_address: 'user',
-      chama_address: 'chama',
+    await createApiClient().addMember({
+      group_address: 'chama',
+      member_address: 'member',
     })
 
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/memberships',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ user_address: 'user', chama_address: 'chama' }),
+        body: JSON.stringify({ group_address: 'chama', member_address: 'member' }),
       }),
     )
   })
 
-  it('leaves a chama with a DELETE', async () => {
-    global.fetch = vi.fn(async () => jsonResponse(200, { outcome: 'left' }))
-
-    await createApiClient().leaveMembership({
-      user_address: 'user',
-      chama_address: 'chama',
-    })
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      '/api/memberships',
-      expect.objectContaining({ method: 'DELETE' }),
-    )
-  })
-
-  it('reads the book with encoded code and pagination query', async () => {
+  it('reads the book with encoded code, pagination query, and requester', async () => {
     global.fetch = vi.fn(async () =>
-      jsonResponse(200, { balance_sompi: '0', rows: [] }),
+      jsonResponse(200, { balance_sompi: '0', rows: [], group: { address: 'chama', name: 'Plot', kind: 'group' } }),
     )
 
-    await createApiClient().getBook('kaspatest:abc', 50, 100)
+    await createApiClient().getBook('kaspatest:abc', 50, 100, 'kaspatest:me')
 
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/chamas/kaspatest%3Aabc/book?limit=50&offset=100',
+      '/api/chamas/kaspatest%3Aabc/book?limit=50&offset=100&user=kaspatest%3Ame',
       expect.objectContaining({ method: 'GET' }),
     )
   })
 
-  it('prepares a payment with the amount in sompi', async () => {
+  it('reads the book without a requester when none is connected', async () => {
     global.fetch = vi.fn(async () =>
-      jsonResponse(200, { signing_template: '{"version":0}' }),
+      jsonResponse(200, { balance_sompi: '0', rows: [], group: { address: 'chama', name: 'Plot', kind: 'group' } }),
     )
 
-    const result = await createApiClient().preparePayment({
-      user_address: 'user',
-      chama_address: 'chama',
-      amount_sompi: '100000000',
-    })
+    await createApiClient().getBook('kaspatest:abc', 50, 0)
 
-    expect(result.signing_template).toBe('{"version":0}')
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/payments/prepare',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({
-          user_address: 'user',
-          chama_address: 'chama',
-          amount_sompi: '100000000',
-        }),
-      }),
-    )
-  })
-
-  it('finalizes a payment with the signed transaction', async () => {
-    global.fetch = vi.fn(async () =>
-      jsonResponse(200, { status: 'recorded', txid: 'ab'.repeat(32) }),
-    )
-
-    const result = await createApiClient().finalizePayment({ signed: 'signed-json' })
-
-    expect(result.status).toBe('recorded')
-    expect(result.txid).toBe('ab'.repeat(32))
-    expect(global.fetch).toHaveBeenCalledWith(
-      '/api/payments/finalize',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ signed: 'signed-json' }),
-      }),
+      '/api/chamas/kaspatest%3Aabc/book?limit=50&offset=0',
+      expect.objectContaining({ method: 'GET' }),
     )
   })
 
@@ -131,9 +89,9 @@ describe('createApiClient', () => {
       jsonResponse(422, { error: { kind: 'invalid', message: 'That code is not valid' } }),
     )
 
-    const promise = createApiClient().joinMembership({
-      user_address: 'user',
-      chama_address: 'bad',
+    const promise = createApiClient().addMember({
+      group_address: 'chama',
+      member_address: 'bad',
     })
     const error = await promise.catch((err: unknown) => err)
 
@@ -148,7 +106,7 @@ describe('createApiClient', () => {
     global.fetch = vi.fn(async () => jsonResponse(503, { message: 'Upstream unavailable' }))
 
     const error = (await createApiClient()
-      .listMemberships('kaspatest:abc')
+      .getHome('kaspatest:abc')
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(503)
@@ -159,7 +117,7 @@ describe('createApiClient', () => {
     global.fetch = vi.fn(async () => new Response('oops', { status: 500 }))
 
     const error = (await createApiClient()
-      .listMemberships('kaspatest:abc')
+      .getHome('kaspatest:abc')
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(500)
@@ -172,7 +130,7 @@ describe('createApiClient', () => {
     })
 
     const error = (await createApiClient()
-      .listMemberships('kaspatest:abc')
+      .getHome('kaspatest:abc')
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(0)
@@ -185,7 +143,7 @@ describe('createApiClient', () => {
     })
 
     const error = (await createApiClient()
-      .listMemberships('kaspatest:abc')
+      .getHome('kaspatest:abc')
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(0)

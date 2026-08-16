@@ -22,6 +22,7 @@ export function BookPage(): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [adding, setAdding] = useState<string | null>(null)
 
   const groupCode = code ?? ''
 
@@ -30,7 +31,7 @@ export function BookPage(): JSX.Element {
     setLoading(true)
     setLoadError(null)
     try {
-      const result = await apiClient.getBook(groupCode, PAGE_SIZE, 0)
+      const result = await apiClient.getBook(groupCode, PAGE_SIZE, 0, wallet.address ?? undefined)
       setBook(result)
       setHasMore(result.rows.length === PAGE_SIZE)
       logger.info('book loaded', {
@@ -45,17 +46,17 @@ export function BookPage(): JSX.Element {
     } finally {
       setLoading(false)
     }
-  }, [groupCode])
+  }, [groupCode, wallet.address])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (wallet.address !== null) void load()
+  }, [load, wallet.address])
 
   const loadMore = useCallback(async () => {
     if (!groupCode || !book) return
     setLoadingMore(true)
     try {
-      const result = await apiClient.getBook(groupCode, PAGE_SIZE, book.rows.length)
+      const result = await apiClient.getBook(groupCode, PAGE_SIZE, book.rows.length, wallet.address ?? undefined)
       setBook((prev) =>
         prev ? { ...prev, rows: [...prev.rows, ...result.rows] } : prev,
       )
@@ -71,15 +72,44 @@ export function BookPage(): JSX.Element {
     } finally {
       setLoadingMore(false)
     }
-  }, [groupCode, book])
+  }, [groupCode, book, wallet.address])
+
+  const isGroup = wallet.address !== null && wallet.address === groupCode
+
+  const handleAdd = useCallback(
+    async (memberAddress: string) => {
+      setAdding(memberAddress)
+      setLoadError(null)
+      try {
+        await apiClient.addMember({
+          group_address: groupCode,
+          member_address: memberAddress,
+        })
+        logger.info('member added to chama', { chamaAddress: groupCode, memberAddress })
+        await load()
+      } catch (err) {
+        const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
+        logger.warn('failed to add member', { error: message })
+        setLoadError(message)
+      } finally {
+        setAdding(null)
+      }
+    },
+    [groupCode, load],
+  )
 
   const canPay = wallet.status === 'connected' && wallet.address !== null
+  const noWallet = wallet.status === 'not-installed'
 
   return (
     <div className="book" data-testid="book">
       <BackLink to="/" label="Your chamas" />
 
-      {loading ? (
+      {noWallet ? (
+        <EmptyState title="Connect your wallet to see this chama.">
+          <p className="empty-sub">Only members can see a chama.</p>
+        </EmptyState>
+      ) : loading ? (
         <div className="loading-container" data-testid="book-loading">
           <p>Reading the book...</p>
         </div>
@@ -113,7 +143,16 @@ export function BookPage(): JSX.Element {
             <>
               <ul className="book-list">
                 {book.rows.map((row) => (
-                  <BookRow key={row.txid} row={row} />
+                  <BookRow
+                    key={row.txid}
+                    row={row}
+                    onAdd={
+                      isGroup && !row.other_is_member
+                        ? () => void handleAdd(row.other_address)
+                        : undefined
+                    }
+                    addBusy={adding === row.other_address}
+                  />
                 ))}
               </ul>
               {hasMore && (

@@ -1,4 +1,4 @@
-import type { Book, Membership, Wallet, WalletKind } from '../../../shared/types'
+import type { Book, Home, Membership, Wallet, WalletKind } from '../../../shared/types'
 import { logger } from '../logger'
 
 const BASE_URL = '/api'
@@ -97,14 +97,11 @@ export function createApiClient(baseUrl?: string) {
   }
 
   return {
-    listMemberships(userAddress: string): Promise<{ memberships: Membership[] }> {
+    getHome(userAddress: string): Promise<Home> {
       return request('GET', `/memberships?user=${encodeURIComponent(userAddress)}`)
     },
-    joinMembership(data: { user_address: string; chama_address: string }): Promise<unknown> {
+    addMember(data: { group_address: string; member_address: string }): Promise<{ membership: Membership }> {
       return request('POST', '/memberships', data)
-    },
-    leaveMembership(data: { user_address: string; chama_address: string }): Promise<unknown> {
-      return request('DELETE', '/memberships', data)
     },
     registerWallet(data: { address: string; name: string; kind: WalletKind }): Promise<{ wallet: Wallet }> {
       return request('POST', '/wallets/register', data)
@@ -112,8 +109,9 @@ export function createApiClient(baseUrl?: string) {
     resolveWallets(addresses: string[]): Promise<{ wallets: Wallet[] }> {
       return request('GET', `/wallets/resolve?addresses=${encodeURIComponent(addresses.join(','))}`)
     },
-    getBook(code: string, limit: number, offset: number): Promise<Book> {
-      return request('GET', `/chamas/${encodeURIComponent(code)}/book?limit=${limit}&offset=${offset}`)
+    getBook(code: string, limit: number, offset: number, userAddress?: string): Promise<Book> {
+      const user = userAddress ? `&user=${encodeURIComponent(userAddress)}` : ''
+      return request('GET', `/chamas/${encodeURIComponent(code)}/book?limit=${limit}&offset=${offset}${user}`)
     },
     preparePayment(data: {
       user_address: string

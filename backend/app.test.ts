@@ -17,6 +17,52 @@ function bookChainStub(): BookChain {
   };
 }
 
+function txWithParty(party: string): TxModel {
+  const txid = "cc".repeat(32);
+  return {
+    subnetwork_id: "0".repeat(64),
+    transaction_id: txid,
+    hash: txid,
+    mass: "100",
+    payload: "",
+    block_hash: [],
+    block_time: 300,
+    version: 0,
+    is_accepted: true,
+    accepting_block_hash: "",
+    accepting_block_blue_score: 0,
+    accepting_block_time: 0,
+    inputs: [
+      {
+        transaction_id: txid,
+        index: 0,
+        previous_outpoint_hash: "0".repeat(64),
+        previous_outpoint_index: "0",
+        signature_script: "",
+        sig_op_count: "1",
+        previous_outpoint_address: party,
+        previous_outpoint_amount: 100000000,
+      },
+    ],
+    outputs: [
+      {
+        transaction_id: txid,
+        index: 0,
+        amount: 100000000,
+        script_public_key: "20..",
+        script_public_key_address: VALID_CODE,
+      },
+    ],
+  };
+}
+
+function bookChainWithParty(party: string): BookChain {
+  return {
+    getBalance: async () => ({ address: VALID_CODE, balance: 12500000000 }),
+    getFullTransactions: async () => [txWithParty(party)],
+  };
+}
+
 function paymentChainStub(): PaymentChain {
   return {
     getUtxos: async () => [],
@@ -98,10 +144,11 @@ interface TestServer {
 async function startServer(
   paymentChain: PaymentChain = paymentChainStub(),
   confirmPolicy?: { maxAttempts: number; baseDelayMs: number; maxDelayMs: number; sleeper?: (ms: number) => Promise<void> },
+  bookChain: BookChain = bookChainStub(),
 ): Promise<TestServer> {
   const store = new SqliteMembershipStore();
   const walletStore = new SqliteWalletStore();
-  const app = createApp({ store, walletStore, bookChain: bookChainStub(), paymentChain, confirmPolicy });
+  const app = createApp({ store, walletStore, bookChain, paymentChain, confirmPolicy });
   const server = await new Promise<Server>((resolve) => {
     const listener = app.listen(0, () => resolve(listener));
   });
@@ -134,59 +181,83 @@ describe("HTTP API", () => {
     expect(await response.json()).toEqual({ ok: true });
   });
 
-  it("lists an empty set of memberships for a new user", async () => {
+  it("returns an unregistered home for a new user", async () => {
     testServer = await startServer();
     const response = await fetch(
       `${testServer.base}/api/memberships?user=${encodeURIComponent(USER_ADDRESS)}`,
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ memberships: [] });
+    expect(await response.json()).toEqual({ identity: null, members: [], chamas: [] });
   });
 
-  it("joins, lists, and leaves a chama", async () => {
-    testServer = await startServer();
-
-    const joined = await post(testServer.base, "/api/memberships", {
-      user_address: USER_ADDRESS,
-      chama_address: VALID_CODE,
+  it("adds a member from the book and reflects it on both homes", async () => {
+    testServer = await startServer(undefined, undefined, bookChainWithParty(USER_ADDRESS));
+    await post(testServer.base, "/api/wallets/register", {
+      address: VALID_CODE,
+      name: "Plot",
+      kind: "group",
     });
-    expect(joined.status).toBe(201);
-    expect((await joined.json()).outcome).toBe("joined");
-
-    const duplicate = await post(testServer.base, "/api/memberships", {
-      user_address: USER_ADDRESS,
-      chama_address: VALID_CODE,
+    await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Amina",
+      kind: "user",
     });
-    expect(duplicate.status).toBe(200);
-    expect((await duplicate.json()).outcome).toBe("already-member");
 
-    const listed = await fetch(
+    const added = await post(testServer.base, "/api/memberships", {
+      group_address: VALID_CODE,
+      member_address: USER_ADDRESS,
+    });
+    expect(added.status).toBe(201);
+    expect((await added.json()) as unknown).toMatchObject({
+      membership: { user_address: USER_ADDRESS, chama_address: VALID_CODE },
+    });
+
+    const personHome = await fetch(
       `${testServer.base}/api/memberships?user=${encodeURIComponent(USER_ADDRESS)}`,
     );
-    expect((await listed.json()).memberships).toHaveLength(1);
-
-    const left = await fetch(`${testServer.base}/api/memberships`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_address: USER_ADDRESS, chama_address: VALID_CODE }),
+    expect(await personHome.json()).toMatchObject({
+      identity: { address: USER_ADDRESS, name: "Amina", kind: "user" },
+      members: [],
+      chamas: [{ address: VALID_CODE, name: "Plot", kind: "group" }],
     });
-    expect(left.status).toBe(200);
-    expect((await left.json()).outcome).toBe("left");
 
-    const afterLeave = await fetch(
-      `${testServer.base}/api/memberships?user=${encodeURIComponent(USER_ADDRESS)}`,
+    const groupHome = await fetch(
+      `${testServer.base}/api/memberships?user=${encodeURIComponent(VALID_CODE)}`,
     );
-    expect((await afterLeave.json()).memberships).toHaveLength(0);
+    expect(await groupHome.json()).toMatchObject({
+      identity: { address: VALID_CODE, name: "Plot", kind: "group" },
+      members: [{ address: USER_ADDRESS, name: "Amina", kind: "user" }],
+      chamas: [],
+    });
   });
 
-  it("rejects an invalid chama code when joining", async () => {
+  it("refuses to add a member who has not transacted with the group", async () => {
     testServer = await startServer();
+    await post(testServer.base, "/api/wallets/register", {
+      address: VALID_CODE,
+      name: "Plot",
+      kind: "group",
+    });
     const response = await post(testServer.base, "/api/memberships", {
-      user_address: USER_ADDRESS,
-      chama_address: "not-a-code",
+      group_address: VALID_CODE,
+      member_address: USER_ADDRESS,
     });
     expect(response.status).toBe(422);
-    expect(await response.json()).toEqual({ outcome: "invalid-code" });
+    expect(((await response.json()) as { error: { message: string } }).error.message).toBe(
+      "This wallet hasn't paid into the chama.",
+    );
+  });
+
+  it("refuses to add a member when the group is not registered", async () => {
+    testServer = await startServer(undefined, undefined, bookChainWithParty(USER_ADDRESS));
+    const response = await post(testServer.base, "/api/memberships", {
+      group_address: VALID_CODE,
+      member_address: USER_ADDRESS,
+    });
+    expect(response.status).toBe(422);
+    expect(((await response.json()) as { error: { message: string } }).error.message).toBe(
+      "This isn't a registered group.",
+    );
   });
 
   it("registers a wallet through the API", async () => {
@@ -293,13 +364,62 @@ describe("HTTP API", () => {
       kind: "group",
     });
     const response = await fetch(
-      `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book`,
+      `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book?user=${encodeURIComponent(VALID_CODE)}`,
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       balance_sompi: "12500000000",
       rows: [],
       group: { address: VALID_CODE, name: "Plot", kind: "group" },
+    });
+  });
+
+  it("refuses a non-member with the member-only copy", async () => {
+    testServer = await startServer();
+    await post(testServer.base, "/api/wallets/register", {
+      address: VALID_CODE,
+      name: "Plot",
+      kind: "group",
+    });
+    await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Amina",
+      kind: "user",
+    });
+    const response = await fetch(
+      `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book?user=${encodeURIComponent(USER_ADDRESS)}`,
+    );
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: { kind: "policy", message: "Only members can see this chama." },
+    });
+  });
+
+  it("lets a member read the book with membership marked on the rows", async () => {
+    testServer = await startServer(undefined, undefined, bookChainWithParty(USER_ADDRESS));
+    await post(testServer.base, "/api/wallets/register", {
+      address: VALID_CODE,
+      name: "Plot",
+      kind: "group",
+    });
+    await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Amina",
+      kind: "user",
+    });
+    await post(testServer.base, "/api/memberships", {
+      group_address: VALID_CODE,
+      member_address: USER_ADDRESS,
+    });
+
+    const response = await fetch(
+      `${testServer.base}/api/chamas/${encodeURIComponent(VALID_CODE)}/book?user=${encodeURIComponent(USER_ADDRESS)}`,
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { rows: Array<{ other_address: string; other_is_member: boolean }> };
+    expect(body.rows[0]).toMatchObject({
+      other_address: USER_ADDRESS,
+      other_is_member: true,
     });
   });
 

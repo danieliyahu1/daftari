@@ -192,4 +192,80 @@ describe('BookPage', () => {
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
     expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
   })
+
+  it('shows the member-only copy when the requester is not a member', async () => {
+    stubApi({
+      [BOOK_PATH]: {
+        status: 422,
+        body: { error: { kind: 'policy', message: 'Only members can see this chama.' } },
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-error')).toBeInTheDocument())
+    expect(screen.getByText('Only members can see this chama.')).toBeInTheDocument()
+  })
+
+  it('lets the group wallet add a non-member from the book', async () => {
+    installConnectedKastle(CHAMA_ADDRESS)
+    let memberAdded = false
+    stubApi({
+      [BOOK_PATH]: {
+        body: () => bookStub({ rows: [makeRow({ other_is_member: memberAdded })] }),
+      },
+      'POST /api/memberships': {
+        status: 201,
+        body: () => {
+          memberAdded = true
+          return {
+            membership: { user_address: USER_ADDRESS, chama_address: CHAMA_ADDRESS, created_at: 1_700_000_000_000 },
+          }
+        },
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('add-member')).toBeInTheDocument())
+
+    await userEvent.click(screen.getByTestId('add-member'))
+
+    await waitFor(() => expect(screen.queryByTestId('add-member')).not.toBeInTheDocument())
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/memberships',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ group_address: CHAMA_ADDRESS, member_address: USER_ADDRESS }),
+      }),
+    )
+  })
+
+  it('shows Add to chama only for non-member rows and only to the group wallet', async () => {
+    installConnectedKastle(CHAMA_ADDRESS)
+    stubApi({
+      [BOOK_PATH]: {
+        body: bookStub({
+          rows: [
+            makeRow({ other_address: USER_ADDRESS, other_is_member: false }),
+            makeRow({
+              txid: 'cd'.repeat(32),
+              other_address: 'kaspatest:qzvp9r3gxg4wvcl44lm5phav2gz5zfx2de7qqqwd3hjlr53rtsn6wefhk0aj8',
+              other_is_member: true,
+            }),
+          ],
+        }),
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(2))
+    expect(screen.getAllByTestId('add-member')).toHaveLength(1)
+  })
+
+  it('hides Add to chama from a member who is not the group wallet', async () => {
+    stubApi({
+      [BOOK_PATH]: {
+        body: bookStub({ rows: [makeRow({ other_is_member: false })] }),
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
+    expect(screen.queryByTestId('add-member')).not.toBeInTheDocument()
+  })
 })
