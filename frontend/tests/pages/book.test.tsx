@@ -2,7 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { BookPage } from '../../src/pages/BookPage'
-import { CHAMA_ADDRESS, stubApi, USER_ADDRESS } from '../helpers'
+import { WalletProvider } from '../../src/wallet/WalletProvider'
+import { CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
 const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`
@@ -24,16 +25,23 @@ function makeRow(overrides: Record<string, unknown> = {}) {
 
 function renderBook(): void {
   render(
-    <MemoryRouter initialEntries={[ROUTE]}>
-      <Routes>
-        <Route path="/groups/:code" element={<BookPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <WalletProvider>
+      <MemoryRouter initialEntries={[ROUTE]}>
+        <Routes>
+          <Route path="/groups/:code" element={<BookPage />} />
+        </Routes>
+      </MemoryRouter>
+    </WalletProvider>,
   )
 }
 
 describe('BookPage', () => {
+  beforeEach(() => {
+    installConnectedKastle()
+  })
+
   afterEach(() => {
+    uninstallKastle()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })

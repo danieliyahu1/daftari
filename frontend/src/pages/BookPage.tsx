@@ -5,19 +5,23 @@ import { apiClient, ApiClientError } from '../api/client'
 import { BackLink } from '../components/BackLink'
 import { BookRow } from '../components/BookRow'
 import { EmptyState } from '../components/EmptyState'
+import { PayDialog } from '../components/PayDialog'
 import { PAGE_SIZE } from '../constants'
 import { sompiToKas } from '../format'
 import { logger } from '../logger'
+import { useWallet } from '../wallet/WalletProvider'
 
 const EMPTY_BOOK_COPY = 'No payments yet. The book starts with the first payment in.'
 
 export function BookPage(): JSX.Element {
   const { code } = useParams<{ code: string }>()
+  const wallet = useWallet()
   const [book, setBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
+  const [paying, setPaying] = useState(false)
 
   const groupCode = code ?? ''
 
@@ -59,6 +63,8 @@ export function BookPage(): JSX.Element {
       setLoadingMore(false)
     }
   }, [groupCode, book])
+
+  const canPay = wallet.status === 'connected' && wallet.address !== null
 
   return (
     <div className="book" data-testid="book">
@@ -103,8 +109,29 @@ export function BookPage(): JSX.Element {
               )}
             </>
           )}
+
+          {canPay && (
+            <div className="book-actions">
+              <button
+                className="button button-primary button-full"
+                onClick={() => setPaying(true)}
+                data-testid="pay-button"
+              >
+                Pay into the group
+              </button>
+            </div>
+          )}
         </>
       ) : null}
+
+      {paying && wallet.address && (
+        <PayDialog
+          groupCode={groupCode}
+          userAddress={wallet.address}
+          onClose={() => setPaying(false)}
+          onRecorded={() => void load()}
+        />
+      )}
     </div>
   )
 }
