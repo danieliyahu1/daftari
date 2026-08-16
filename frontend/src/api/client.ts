@@ -116,7 +116,11 @@ export function createApiClient(baseUrl?: string) {
     }): Promise<{ signing_template: string }> {
       return request('POST', '/payments/prepare', data)
     },
-    finalizePayment(data: { signed: string }): Promise<{ txid: string }> {
+    finalizePayment(data: { signed: string }): Promise<{
+      status: 'recorded' | 'pending'
+      txid: string
+      explorer_url?: string
+    }> {
       return request('POST', '/payments/finalize', data)
     },
   }

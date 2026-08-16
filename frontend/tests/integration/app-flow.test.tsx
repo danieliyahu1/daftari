@@ -59,13 +59,12 @@ function setupBackend(): void {
         direction: 'in',
         amount_sompi: '1000000000',
         other_address: USER_ADDRESS,
-        date: 1_700_000_000,
+        date: 1_700_000_000_000,
         txid: TXID,
         proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
-        is_accepted: true,
       })
       balance += 1_000_000_000n
-      return json(200, { txid: TXID })
+      return json(200, { status: 'recorded', txid: TXID })
     }
     return json(404, { error: { kind: 'invalid', message: 'not found' } })
   })
@@ -119,15 +118,15 @@ describe('whole demo flow — integration', () => {
     await userEvent.click(within(dialog).getByTestId('pay-approve'))
     await waitFor(() => expect(within(dialog).getByTestId('pay-sent')).toBeInTheDocument())
     expect(
-      within(dialog).getByText('Payment approved — waiting for the record...'),
+      within(dialog).getByText('Payment recorded.'),
     ).toBeInTheDocument()
 
     // 5. Back to the book — the recorded row appears (SC-4) with its proof (SC-6)
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
-    expect(within(row).getByTestId('book-direction')).toHaveTextContent('IN')
     expect(within(row).getByTestId('book-amount')).toHaveTextContent('+10 KAS')
+    expect(within(row).getByTestId('book-amount')).toHaveClass('book-amount--in')
     const proof = within(row).getByTestId('book-proof')
     expect(proof).toHaveAttribute(
       'href',

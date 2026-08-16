@@ -1,4 +1,4 @@
-import { getNetworkConfig } from "../shared/network";
+import { getNetworkConfig, proofUrl } from "../shared/network";
 import { scriptPublicKeyForAddress } from "./kaspa-address";
 import { AppError, requiredStr, toRouteResult } from "./errors";
 import type { RouteResult } from "./errors";
@@ -28,6 +28,52 @@ export interface PrepareInput {
 
 export interface FinalizeInput {
   signed?: unknown;
+}
+
+export interface ConfirmPolicy {
+  maxAttempts: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  sleeper?: (ms: number) => Promise<void>;
+}
+
+// Six checks with doubling backoff (1s, 2s, 4s, 8s, 8s) ≈ 23s of wall time.
+// Testnet blocks in ~1s, so acceptance normally lands on the first or second
+// check; the budget only matters for a tx stuck near the DAG tip.
+const DEFAULT_CONFIRM_POLICY: ConfirmPolicy = {
+  maxAttempts: 6,
+  baseDelayMs: 1_000,
+  maxDelayMs: 8_000,
+};
+
+function defaultSleeper(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Polls until the broadcast tx is accepted on chain. A tx near the tip can
+// report is_accepted === false before flipping to true, so only acceptance is
+// decisive; false and transient 404s keep the loop alive. Returns true when
+// accepted, false when the budget is spent without a verdict.
+export async function waitForAcceptance(
+  chain: PaymentChain,
+  txid: string,
+  policy: ConfirmPolicy = DEFAULT_CONFIRM_POLICY,
+): Promise<boolean> {
+  const sleeper = policy.sleeper ?? defaultSleeper;
+  let delay = policy.baseDelayMs;
+  for (let attempt = 0; attempt < policy.maxAttempts; attempt++) {
+    try {
+      const tx = await chain.getTransaction(txid);
+      if (tx.is_accepted) return true;
+    } catch {
+      // not yet visible — keep polling
+    }
+    if (attempt < policy.maxAttempts - 1) {
+      await sleeper(delay);
+      delay = Math.min(delay * 2, policy.maxDelayMs);
+    }
+  }
+  return false;
 }
 
 export interface SignedTransactionInput {
@@ -331,6 +377,7 @@ export async function handlePreparePayment(
 export async function handleFinalizePayment(
   input: FinalizeInput,
   chain: PaymentChain = new KaspaClient(),
+  policy: ConfirmPolicy = DEFAULT_CONFIRM_POLICY,
 ): Promise<RouteResult> {
   try {
     const signed = parseSignedTransaction(requireString(input.signed, "signed"));
@@ -339,12 +386,25 @@ export async function handleFinalizePayment(
     verifyAffordability(signed, inputAmounts, feerate);
     const response = await chain.broadcastTransaction(toSubmitTxModel(signed));
     if (response.transactionId !== undefined && response.transactionId !== "") {
+      const txid = response.transactionId.toLowerCase();
+      const accepted = await waitForAcceptance(chain, txid, policy);
       logger.info("payment finalized", {
-        txid: response.transactionId,
+        txid,
+        accepted,
         inputs: signed.inputs.length,
         outputs: signed.outputs.length,
       });
-      return { status: 200, body: { txid: response.transactionId } };
+      if (accepted) {
+        return { status: 200, body: { status: "recorded", txid } };
+      }
+      return {
+        status: 202,
+        body: {
+          status: "pending",
+          txid,
+          explorer_url: proofUrl(getNetworkConfig(), txid),
+        },
+      };
     }
     logger.warn("payment rejected by node", { error: response.error });
     throw new AppError("conflict", response.error ?? "Transaction was rejected by the node");

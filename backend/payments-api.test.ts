@@ -10,6 +10,7 @@ import type {
 import {
   handleFinalizePayment,
   handlePreparePayment,
+  waitForAcceptance,
 } from "./payments-api";
 import type { PaymentChain } from "./payments-api";
 import { buildTransfer } from "./tx-builder";
@@ -376,7 +377,7 @@ describe("handleFinalizePayment", () => {
     );
 
     expect(result.status).toBe(200);
-    expect(result.body).toEqual({ txid: TXID });
+    expect(result.body).toEqual({ status: "recorded", txid: TXID });
     expect(getTransaction).toHaveBeenCalledWith("a".repeat(64));
     expect(getTransaction).toHaveBeenCalledWith("b".repeat(64));
     expect(broadcastTransaction).toHaveBeenCalledTimes(1);
@@ -483,5 +484,100 @@ describe("handleFinalizePayment", () => {
 
     expect(result.status).toBe(503);
     expect(result.body).toMatchObject({ error: { kind: "network" } });
+  });
+
+  it("returns a recorded verdict when the tx is accepted", async () => {
+    const { chain, getTransaction, broadcastTransaction } = makeChain();
+    getTransaction.mockResolvedValue({
+      ...txModel([{ index: 0, amount: 1000000000 }]),
+      is_accepted: true,
+    });
+    broadcastTransaction.mockResolvedValue({ transactionId: TXID });
+
+    const result = await handleFinalizePayment(
+      { signed: signedTx() },
+      chain,
+      { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, sleeper: async () => {} },
+    );
+
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ status: "recorded", txid: TXID });
+  });
+
+  it("returns a pending verdict with explorer link when the budget is spent", async () => {
+    const { chain, getTransaction, broadcastTransaction } = makeChain();
+    getTransaction.mockResolvedValue({
+      ...txModel([{ index: 0, amount: 1000000000 }]),
+      is_accepted: false,
+    });
+    broadcastTransaction.mockResolvedValue({ transactionId: TXID });
+
+    const result = await handleFinalizePayment(
+      { signed: signedTx() },
+      chain,
+      { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, sleeper: async () => {} },
+    );
+
+    expect(result.status).toBe(202);
+    expect(result.body).toEqual({
+      status: "pending",
+      txid: TXID,
+      explorer_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+    });
+  });
+
+  it("rejects the broadcast verdict as a conflict when the node declines", async () => {
+    const { chain, getTransaction, broadcastTransaction } = makeChain();
+    getTransaction.mockResolvedValue({
+      ...txModel([{ index: 0, amount: 1000000000 }]),
+      is_accepted: false,
+    });
+    broadcastTransaction.mockResolvedValue({ error: "double spend" });
+
+    const result = await handleFinalizePayment(
+      { signed: signedTx() },
+      chain,
+      { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, sleeper: async () => {} },
+    );
+
+    expect(result.status).toBe(409);
+    expect(result.body).toMatchObject({ error: { kind: "conflict" } });
+  });
+
+  it("waits out a not-yet-accepted tx and reports acceptance", async () => {
+    const { chain } = makeChain();
+    const calls = [
+      { ...txModel([]), is_accepted: false },
+      { ...txModel([]), is_accepted: false },
+      { ...txModel([]), is_accepted: true },
+    ];
+    chain.getTransaction = vi.fn(async () => calls.shift() as TxModel);
+
+    const accepted = await waitForAcceptance(chain, TXID, {
+      maxAttempts: 5,
+      baseDelayMs: 1,
+      maxDelayMs: 1,
+      sleeper: async () => {},
+    });
+
+    expect(accepted).toBe(true);
+    expect(chain.getTransaction).toHaveBeenCalledTimes(3);
+  });
+
+  it("treats a tx that never becomes accepted as pending after the budget", async () => {
+    const { chain } = makeChain();
+    chain.getTransaction = vi.fn(
+      async () => ({ ...txModel([]), is_accepted: false }) as TxModel,
+    );
+
+    const accepted = await waitForAcceptance(chain, TXID, {
+      maxAttempts: 4,
+      baseDelayMs: 1,
+      maxDelayMs: 1,
+      sleeper: async () => {},
+    });
+
+    expect(accepted).toBe(false);
+    expect(chain.getTransaction).toHaveBeenCalledTimes(4);
   });
 });

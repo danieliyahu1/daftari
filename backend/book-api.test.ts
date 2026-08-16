@@ -197,7 +197,6 @@ describe("deriveBookRow", () => {
       date: 1_720_000_000,
       txid: "c".repeat(64),
       proof_url: `https://explorer-tn10.kaspa.org/txs/${"c".repeat(64)}`,
-      is_accepted: true,
     });
   });
 
@@ -251,15 +250,14 @@ describe("deriveBookRow", () => {
 });
 
 describe("bookRowsForPage", () => {
-  it("keeps accepted and rejected rows and sorts newest first by block_time", () => {
+  it("keeps only accepted rows and sorts newest first by block_time", () => {
     const older = tx({ txid: "a".repeat(64), block_time: 100, is_accepted: true, inputs: [{ address: ALICE, amount: 10 }], outputs: [{ address: GROUP, amount: 10 }] });
     const rejected = tx({ txid: "b".repeat(64), block_time: 200, is_accepted: false, inputs: [{ address: BOB, amount: 20 }], outputs: [{ address: GROUP, amount: 20 }] });
     const newest = tx({ txid: "c".repeat(64), block_time: 300, is_accepted: true, inputs: [{ address: BOB, amount: 30 }], outputs: [{ address: GROUP, amount: 30 }] });
 
     const rows = bookRowsForPage(GROUP, [older, rejected, newest], NETWORK);
 
-    expect(rows.map((row) => row.txid)).toEqual(["c".repeat(64), "b".repeat(64), "a".repeat(64)]);
-    expect(rows.map((row) => row.is_accepted)).toEqual([true, false, true]);
+    expect(rows.map((row) => row.txid)).toEqual(["c".repeat(64), "a".repeat(64)]);
   });
 
   it("breaks block_time ties by txid for determinism", () => {
@@ -321,7 +319,6 @@ describe("handleGetBook", () => {
           date: 300,
           txid: "c".repeat(64),
           proof_url: `https://explorer-tn10.kaspa.org/txs/${"c".repeat(64)}`,
-          is_accepted: true,
         },
       ],
     });

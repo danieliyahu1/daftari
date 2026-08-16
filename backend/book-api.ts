@@ -153,20 +153,19 @@ export function deriveBookRow(
     date: tx.block_time,
     txid: tx.transaction_id,
     proof_url: proofUrl(network, tx.transaction_id),
-    is_accepted: tx.is_accepted,
   };
 }
 
-// Every transaction the chain reports, newest first by block_time (ties broken
-// by txid), and never a row the chain does not support. The chain's own
-// acceptance verdict is carried on each row; the book does not hide rejected
-// or not-yet-accepted payments.
+// Accepted rows only — the book mirrors the chain's accepted set — newest first
+// by block_time (ties broken by txid), and never a row the chain does not
+// support.
 export function bookRowsForPage(
   groupAddress: string,
   txs: readonly TxModel[],
   network: NetworkConfig,
 ): BookRow[] {
   return txs
+    .filter((tx) => tx.is_accepted)
     .map((tx) => deriveBookRow(groupAddress, tx, network))
     .filter((row): row is BookRow => row !== null)
     .sort(

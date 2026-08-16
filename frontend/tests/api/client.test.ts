@@ -98,10 +98,13 @@ describe('createApiClient', () => {
   })
 
   it('finalizes a payment with the signed transaction', async () => {
-    global.fetch = vi.fn(async () => jsonResponse(200, { txid: 'ab'.repeat(32) }))
+    global.fetch = vi.fn(async () =>
+      jsonResponse(200, { status: 'recorded', txid: 'ab'.repeat(32) }),
+    )
 
     const result = await createApiClient().finalizePayment({ signed: 'signed-json' })
 
+    expect(result.status).toBe('recorded')
     expect(result.txid).toBe('ab'.repeat(32))
     expect(global.fetch).toHaveBeenCalledWith(
       '/api/payments/finalize',

@@ -27,7 +27,6 @@ export interface BookRow {
   date: number;
   txid: string;
   proof_url: string;
-  is_accepted: boolean;
 }
 
 export interface Book {

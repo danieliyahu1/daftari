@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiClient, ApiClientError } from '../api/client'
-import { kasToSompi, shortAddress, sompiToKas } from '../format'
+import { kasToSompi, shortAddress, shortTxid, sompiToKas } from '../format'
 import { logger } from '../logger'
 import { extractSignedTx, EXPECTED_NETWORK, isUserRejection } from '../wallet/kastle'
 import { useToast } from './Toaster'
@@ -10,6 +10,7 @@ export type PayPhase =
   | { name: 'review'; kas: string; sompi: string }
   | { name: 'preparing' }
   | { name: 'signing' }
+  | { name: 'pending'; txid: string; explorerUrl: string }
   | { name: 'sent' }
   | { name: 'failed' }
   | { name: 'error'; message: string }
@@ -29,6 +30,7 @@ interface PayOutcomeProps {
   actionTestId: string
   onAction: () => void
   testId: string
+  children?: JSX.Element
 }
 
 function PayOutcome({
@@ -39,6 +41,7 @@ function PayOutcome({
   actionTestId,
   onAction,
   testId,
+  children,
 }: PayOutcomeProps): JSX.Element {
   return (
     <div className="pay-outcome" data-testid={testId}>
@@ -47,6 +50,7 @@ function PayOutcome({
       </div>
       <h2 className="dialog-title">{title}</h2>
       <p className="dialog-copy">{copy}</p>
+      {children}
       <button className="button button-primary button-full" onClick={onAction} data-testid={actionTestId}>
         {actionLabel}
       </button>
@@ -110,9 +114,17 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
         return
       }
 
-      const { txid } = await apiClient.finalizePayment({ signed })
-      logger.info('payment sent', { chamaAddress: groupCode, amountSompi: sompi, txid })
-      setPhase({ name: 'sent' })
+      const { status, txid, explorer_url } = await apiClient.finalizePayment({ signed })
+      logger.info('payment sent', { chamaAddress: groupCode, amountSompi: sompi, txid, status })
+      if (status === 'recorded') {
+        setPhase({ name: 'sent' })
+      } else {
+        setPhase({
+          name: 'pending',
+          txid,
+          explorerUrl: explorer_url ?? '',
+        })
+      }
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 0) {
         logger.warn('payment network error', { chamaAddress: groupCode, amountSompi: sompi, message: err.message })
@@ -218,11 +230,35 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
           </div>
         )}
 
+        {phase.name === 'pending' && (
+          <PayOutcome
+            kind="ok"
+            title="Still confirming…"
+            copy={`It hasn't been permanently recorded yet. Check the chain for this transaction — the book shows it the moment it is.`}
+            actionLabel="Back to the book"
+            actionTestId="pay-back-to-book"
+            onAction={handleRecorded}
+            testId="pay-pending"
+          >
+            {phase.explorerUrl && (
+              <a
+                className="pay-explorer-link"
+                href={phase.explorerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="pay-explorer-link"
+              >
+                {shortTxid(phase.txid)}
+              </a>
+            )}
+          </PayOutcome>
+        )}
+
         {phase.name === 'sent' && (
           <PayOutcome
             kind="ok"
-            title="Payment approved — waiting for the record..."
-            copy="Your payment appears in the book the moment it's permanently recorded."
+            title="Payment recorded."
+            copy="It's on the book, permanent and verifiable."
             actionLabel="Back to the book"
             actionTestId="pay-back-to-book"
             onAction={handleRecorded}

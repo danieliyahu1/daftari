@@ -16,10 +16,9 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     direction: 'in',
     amount_sompi: '100000000',
     other_address: USER_ADDRESS,
-    date: 1_700_000_000,
+    date: 1_700_000_000_000,
     txid: TXID,
     proof_url: PROOF,
-    is_accepted: true,
     ...overrides,
   }
 }
@@ -77,7 +76,6 @@ describe('BookPage', () => {
     renderBook()
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
-    expect(within(row).getByTestId('book-direction')).toHaveTextContent('IN')
     expect(within(row).getByTestId('book-amount')).toHaveTextContent('+1 KAS')
     expect(within(row).getByText('kaspat...ukdl')).toBeInTheDocument()
     expect(within(row).getByTestId('book-date')).toHaveTextContent(/2023/)
@@ -95,7 +93,6 @@ describe('BookPage', () => {
     })
     renderBook()
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
-    expect(screen.getByTestId('book-direction')).toHaveTextContent('OUT')
     expect(screen.getByTestId('book-amount')).toHaveTextContent('−1 KAS')
   })
 

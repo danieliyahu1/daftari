@@ -52,11 +52,11 @@ describe('PayDialog pay-in flow', () => {
     expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
   })
 
-  it('walks amount → review → approve → signed → finalize → waiting for the record', async () => {
+  it('walks amount → review → approve → signed → finalize → recorded', async () => {
     stubApi({
       [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
-      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+      [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })
     renderBookWithWallet()
     await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
@@ -77,7 +77,7 @@ describe('PayDialog pay-in flow', () => {
 
     await waitFor(() => expect(within(dialog).getByTestId('pay-sent')).toBeInTheDocument())
     expect(
-      within(dialog).getByText('Payment approved — waiting for the record...'),
+      within(dialog).getByText('Payment recorded.'),
     ).toBeInTheDocument()
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -88,6 +88,38 @@ describe('PayDialog pay-in flow', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/payments/finalize'),
       expect.objectContaining({ method: 'POST' }),
+    )
+
+    await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
+    expect(screen.queryByTestId('pay-dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows a still-confirming panel with an explorer link when acceptance is pending', async () => {
+    stubApi({
+      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [PREPARE]: { body: { signing_template: '{"version":0}' } },
+      [FINALIZE]: {
+        body: {
+          status: 'pending',
+          txid: 'ab'.repeat(32),
+          explorer_url: `https://explorer-tn10.kaspa.org/txs/${'ab'.repeat(32)}`,
+        },
+      },
+    })
+    renderBookWithWallet()
+    await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('pay-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    await userEvent.type(within(dialog).getByTestId('pay-amount-input'), '1')
+    await userEvent.click(within(dialog).getByTestId('pay-next'))
+    await userEvent.click(within(dialog).getByTestId('pay-approve'))
+
+    await waitFor(() => expect(within(dialog).getByTestId('pay-pending')).toBeInTheDocument())
+    expect(within(dialog).getByText('Still confirming…')).toBeInTheDocument()
+    const link = within(dialog).getByTestId('pay-explorer-link')
+    expect(link).toHaveAttribute(
+      'href',
+      `https://explorer-tn10.kaspa.org/txs/${'ab'.repeat(32)}`,
     )
 
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
@@ -136,7 +168,7 @@ describe('PayDialog pay-in flow', () => {
         status: 422,
         body: { error: { kind: 'policy', message: 'Insufficient funds' } },
       },
-      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+      [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })
     renderBookWithWallet()
     await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
@@ -207,7 +239,7 @@ describe('PayDialog pay-in flow', () => {
     stubApi({
       [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
-      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+      [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })
     window.kastle!.signTx = vi.fn(async () => {
       throw new Error('Expected string, received object')
@@ -234,7 +266,7 @@ describe('PayDialog pay-in flow', () => {
     stubApi({
       [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
       [PREPARE]: { body: { signing_template: '{"version":0}' } },
-      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+      [FINALIZE]: { body: { status: 'recorded', txid: 'ab'.repeat(32) } },
     })
     window.kastle!.signTx = vi.fn(async () => {
       const error = new Error('user rejected the request')

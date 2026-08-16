@@ -10,14 +10,11 @@ export function BookRow({ row }: BookRowProps): JSX.Element {
   const sign = isIn ? '+' : '−'
   return (
     <li className="book-row" data-testid="book-row">
-      <span
-        className={`book-direction book-direction--${row.direction}`}
-        data-testid="book-direction"
-      >
-        {row.direction.toUpperCase()}
-      </span>
       <div className="book-row-body">
-        <span className="book-amount mono" data-testid="book-amount">
+        <span
+          className={`book-amount mono book-amount--${row.direction}`}
+          data-testid="book-amount"
+        >
           {sign}{sompiToKas(row.amount_sompi)} KAS
         </span>
         <span className="book-party mono" title={row.other_address}>
@@ -25,13 +22,8 @@ export function BookRow({ row }: BookRowProps): JSX.Element {
         </span>
       </div>
       <div className="book-row-meta">
-        <span
-          className={`book-status-dot book-status-dot--${row.is_accepted ? 'accepted' : 'rejected'}`}
-          data-testid="book-status"
-          aria-label={row.is_accepted ? 'Accepted' : 'Not accepted'}
-        />
         <span className="book-date" data-testid="book-date">
-          {formatDate(row.date)}
+          {formatDate(row.date / 1000)}
         </span>
         <a
           className="book-proof"

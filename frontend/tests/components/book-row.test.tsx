@@ -10,10 +10,9 @@ function makeRow(overrides: Partial<BookRow> = {}): BookRow {
     direction: 'in',
     amount_sompi: '100000000',
     other_address: USER_ADDRESS,
-    date: 1_700_000_000,
+    date: 1_700_000_000_000,
     txid: TXID,
     proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
-    is_accepted: true,
     ...overrides,
   }
 }
@@ -25,8 +24,8 @@ describe('BookRow', () => {
         <BookRowComponent row={makeRow()} />
       </ul>,
     )
-    expect(screen.getByTestId('book-direction')).toHaveTextContent('IN')
     expect(screen.getByTestId('book-amount')).toHaveTextContent('+1 KAS')
+    expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--in')
     expect(screen.getByText('kaspat...ukdl')).toBeInTheDocument()
     expect(screen.getByTestId('book-date')).toHaveTextContent(/2023/)
     expect(screen.getByTestId('book-proof')).toHaveAttribute(
@@ -41,29 +40,7 @@ describe('BookRow', () => {
         <BookRowComponent row={makeRow({ direction: 'out' })} />
       </ul>,
     )
-    expect(screen.getByTestId('book-direction')).toHaveTextContent('OUT')
     expect(screen.getByTestId('book-amount')).toHaveTextContent('−1 KAS')
-  })
-
-  it('shows a green dot for an accepted row', () => {
-    render(
-      <ul>
-        <BookRowComponent row={makeRow({ is_accepted: true })} />
-      </ul>,
-    )
-    expect(screen.getByTestId('book-status')).toHaveClass(
-      'book-status-dot--accepted',
-    )
-  })
-
-  it('shows a red dot for a not-accepted row', () => {
-    render(
-      <ul>
-        <BookRowComponent row={makeRow({ is_accepted: false })} />
-      </ul>,
-    )
-    expect(screen.getByTestId('book-status')).toHaveClass(
-      'book-status-dot--rejected',
-    )
+    expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--out')
   })
 })

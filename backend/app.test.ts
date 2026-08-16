@@ -19,7 +19,30 @@ function bookChainStub(): BookChain {
 function paymentChainStub(): PaymentChain {
   return {
     getUtxos: async () => [],
-    getTransaction: async () => ({}) as TxModel,
+    getTransaction: async () =>
+      ({
+        subnetwork_id: "0".repeat(64),
+        transaction_id: "dd".repeat(32),
+        hash: "dd".repeat(32),
+        mass: "100",
+        payload: "",
+        block_hash: [],
+        block_time: 0,
+        version: 0,
+        is_accepted: true,
+        accepting_block_hash: "",
+        accepting_block_blue_score: 0,
+        accepting_block_time: 0,
+        inputs: [],
+        outputs: [
+          {
+            transaction_id: "dd".repeat(32),
+            index: 0,
+            amount: 10000000000,
+            script_public_key: "20..",
+          },
+        ],
+      }) as TxModel,
     getFeeEstimate: async () => ({
       priorityBucket: { feerate: 100, estimatedSeconds: 10 },
       normalBuckets: [{ feerate: 100, estimatedSeconds: 30 }],
@@ -29,15 +52,53 @@ function paymentChainStub(): PaymentChain {
   };
 }
 
+function validSignedTx(): string {
+  return JSON.stringify({
+    id: "0".repeat(64),
+    version: 0,
+    inputs: [
+      {
+        transactionId: "dd".repeat(32),
+        index: 0,
+        sequence: "0",
+        sigOpCount: 1,
+        computeBudget: 0,
+        signatureScript: "01".repeat(32),
+        utxo: {
+          amount: "0",
+          scriptPublicKey: `0000${"20".repeat(32)}`,
+          blockDaaScore: "0",
+          isCoinbase: false,
+        },
+      },
+    ],
+    outputs: [
+      {
+        value: "100000000",
+        scriptPublicKey: `0000${"20".repeat(32)}`,
+        covenant: null,
+      },
+    ],
+    subnetworkId: "0".repeat(40),
+    lockTime: "0",
+    gas: "0",
+    storageMass: "20000",
+    payload: "",
+  });
+}
+
 interface TestServer {
   base: string;
   server: Server;
   store: SqliteMembershipStore;
 }
 
-async function startServer(): Promise<TestServer> {
+async function startServer(
+  paymentChain: PaymentChain = paymentChainStub(),
+  confirmPolicy?: { maxAttempts: number; baseDelayMs: number; maxDelayMs: number; sleeper?: (ms: number) => Promise<void> },
+): Promise<TestServer> {
   const store = new SqliteMembershipStore();
-  const app = createApp({ store, bookChain: bookChainStub(), paymentChain: paymentChainStub() });
+  const app = createApp({ store, bookChain: bookChainStub(), paymentChain, confirmPolicy });
   const server = await new Promise<Server>((resolve) => {
     const listener = app.listen(0, () => resolve(listener));
   });
@@ -173,5 +234,54 @@ describe("HTTP API", () => {
     const response = await post(testServer.base, "/api/payments/finalize", {});
     expect(response.status).toBe(400);
     expect(((await response.json()) as { error: { kind: string } }).error.kind).toBe("invalid");
+  });
+
+  it("records a finalized payment that is accepted on chain", async () => {
+    const chain = paymentChainStub();
+    testServer = await startServer(chain);
+    const response = await post(testServer.base, "/api/payments/finalize", {
+      signed: validSignedTx(),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      status: "recorded",
+      txid: "dd".repeat(32),
+    });
+  });
+
+  it("returns 202 pending with an explorer link when acceptance is not confirmed in time", async () => {
+    const chain = paymentChainStub();
+    chain.getTransaction = async () =>
+      ({
+        subnetwork_id: "0".repeat(64),
+        transaction_id: "dd".repeat(32),
+        hash: "dd".repeat(32),
+        mass: "100",
+        payload: "",
+        block_hash: [],
+        block_time: 0,
+        version: 0,
+        is_accepted: false,
+        accepting_block_hash: "",
+        accepting_block_blue_score: 0,
+        accepting_block_time: 0,
+        inputs: [],
+        outputs: [{ transaction_id: "dd".repeat(32), index: 0, amount: 1000000000, script_public_key: "20.." }],
+      }) as TxModel;
+    testServer = await startServer(chain, {
+      maxAttempts: 3,
+      baseDelayMs: 1,
+      maxDelayMs: 1,
+      sleeper: async () => {},
+    });
+    const response = await post(testServer.base, "/api/payments/finalize", {
+      signed: validSignedTx(),
+    });
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({
+      status: "pending",
+      txid: "dd".repeat(32),
+      explorer_url: `https://explorer-tn10.kaspa.org/txs/${"dd".repeat(32)}`,
+    });
   });
 });

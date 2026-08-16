@@ -17,7 +17,7 @@ import {
   handleListMemberships,
 } from "./memberships-api";
 import { handleFinalizePayment, handlePreparePayment } from "./payments-api";
-import type { PaymentChain } from "./payments-api";
+import type { PaymentChain, ConfirmPolicy } from "./payments-api";
 import { requestContext } from "./request-context";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -37,9 +37,10 @@ export interface AppDependencies {
   store: MembershipStore;
   bookChain?: BookChain;
   paymentChain?: PaymentChain;
+  confirmPolicy?: ConfirmPolicy;
 }
 
-export function createApp({ store, bookChain, paymentChain }: AppDependencies): express.Express {
+export function createApp({ store, bookChain, paymentChain, confirmPolicy }: AppDependencies): express.Express {
   const app = express();
   app.use(express.json());
   app.use(cors());
@@ -93,7 +94,7 @@ export function createApp({ store, bookChain, paymentChain }: AppDependencies): 
   });
 
   app.post("/api/payments/finalize", async (req: Request, res: Response) => {
-    const result = await handleFinalizePayment(req.body ?? {}, paymentChain);
+    const result = await handleFinalizePayment(req.body ?? {}, paymentChain, confirmPolicy);
     send(res, result);
   });
 

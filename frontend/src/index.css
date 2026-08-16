@@ -415,26 +415,6 @@ body {
   border-radius: var(--radius);
 }
 
-.book-direction {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  margin-top: 0.15rem;
-}
-
-.book-direction--in {
-  color: var(--color-success);
-  background: var(--color-success-soft);
-}
-
-.book-direction--out {
-  color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
-}
-
 .book-row-body {
   flex: 1;
   min-width: 0;
@@ -447,6 +427,14 @@ body {
   font-size: 0.95rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+.book-amount--in {
+  color: var(--color-success);
+}
+
+.book-amount--out {
+  color: var(--color-text);
 }
 
 .book-party {
@@ -464,20 +452,6 @@ body {
   align-items: flex-end;
   gap: 0.15rem;
   font-size: 0.72rem;
-}
-
-.book-status-dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-}
-
-.book-status-dot--accepted {
-  background: var(--color-success);
-}
-
-.book-status-dot--rejected {
-  background: var(--color-error);
 }
 
 .book-date {
@@ -576,6 +550,20 @@ body {
 
 .pay-outcome .dialog-copy {
   max-width: 34ch;
+}
+
+.pay-explorer-link {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.pay-explorer-link:hover {
+  color: var(--color-primary-hover);
 }
 
 .status-icon {
