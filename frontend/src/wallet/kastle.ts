@@ -97,14 +97,32 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   })
 }
 
+const USER_REJECTION_PATTERN = /rejected|cancelled|canceled|denied|timeout/i
+
 export function isUserRejection(err: unknown): boolean {
-  if (err instanceof Error) return /rejected|cancelled|canceled|denied|timeout/i.test(err.message)
+  if (err instanceof Error) return USER_REJECTION_PATTERN.test(err.message)
   if (err && typeof err === 'object') {
     if ((err as { code?: unknown }).code === 4001) return true
     const message = (err as { message?: unknown }).message
-    return typeof message === 'string' && /rejected|cancelled|canceled|denied/i.test(message)
+    return typeof message === 'string' && USER_REJECTION_PATTERN.test(message)
   }
   return false
+}
+
+const DISCONNECTED_STATE: KastleState = {
+  status: 'disconnected',
+  address: null,
+  network: null,
+  error: null,
+}
+
+function applyNetwork(
+  state: KastleState,
+  account: { address: string | null; network: string | null },
+): KastleState {
+  return account.network === EXPECTED_NETWORK
+    ? { ...state, status: 'connected', address: account.address, network: account.network, error: null }
+    : { ...state, status: 'wrong-network', address: account.address, network: account.network, error: null }
 }
 
 const INITIAL_STATE: KastleState = {
@@ -123,11 +141,7 @@ export function useKastle(): KastleState & KastleActions {
 
   const applyAccount = useCallback(async (address: string) => {
     const network = await readNetwork()
-    setState((prev) =>
-      network === EXPECTED_NETWORK
-        ? { ...prev, status: 'connected', address, network, error: null }
-        : { ...prev, status: 'wrong-network', address, network, error: null },
-    )
+    setState((prev) => applyNetwork(prev, { address, network }))
     if (network === EXPECTED_NETWORK) {
       logger.info('wallet connected', { address, network })
     } else {
@@ -179,7 +193,7 @@ export function useKastle(): KastleState & KastleActions {
       const addrs = accounts as string[]
       if (addrs.length === 0) {
         logger.info('kastle accounts changed: disconnected')
-        setState((prev) => ({ ...prev, status: 'disconnected', address: null, network: null, error: null }))
+        setState((prev) => ({ ...prev, ...DISCONNECTED_STATE }))
       } else {
         const address = addrs[0]
         if (address) void applyAccount(address)
@@ -222,7 +236,7 @@ export function useKastle(): KastleState & KastleActions {
       const account = await withTimeout(window.kastle.getAccount(), CONNECT_TIMEOUT_MS)
       const address = account?.address
       if (!address) {
-        setState((prev) => ({ ...prev, status: 'disconnected', error: 'Connection cancelled.' }))
+        setState((prev) => ({ ...prev, ...DISCONNECTED_STATE, error: 'Connection cancelled.' }))
         return
       }
       await applyAccount(address)
@@ -233,7 +247,7 @@ export function useKastle(): KastleState & KastleActions {
       logger.error('kastle connection failed', {
         error: err instanceof Error ? err.message : String(err),
       })
-      setState((prev) => ({ ...prev, status: 'disconnected', error: message }))
+      setState((prev) => ({ ...prev, ...DISCONNECTED_STATE, error: message }))
     }
   }, [applyAccount])
 
@@ -243,11 +257,7 @@ export function useKastle(): KastleState & KastleActions {
     try {
       await window.kastle.switchNetwork(EXPECTED_NETWORK)
       const network = await readNetwork()
-      setState((prev) =>
-        network === EXPECTED_NETWORK
-          ? { ...prev, status: 'connected', network, error: null }
-          : { ...prev, status: 'wrong-network', network, error: null },
-      )
+      setState((prev) => applyNetwork(prev, { address: prev.address, network }))
       if (network === EXPECTED_NETWORK) {
         logger.info('network switched', { network })
       } else {
@@ -263,7 +273,7 @@ export function useKastle(): KastleState & KastleActions {
 
   const disconnect = useCallback(() => {
     logger.info('wallet disconnected')
-    setState((prev) => ({ ...prev, status: 'disconnected', address: null, network: null, error: null }))
+    setState((prev) => ({ ...prev, ...DISCONNECTED_STATE }))
   }, [])
 
   const clearError = useCallback(() => {

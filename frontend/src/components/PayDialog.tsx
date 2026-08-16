@@ -21,6 +21,39 @@ interface PayDialogProps {
   onRecorded: () => void
 }
 
+interface PayOutcomeProps {
+  kind: 'ok' | 'error'
+  title: string
+  copy: string
+  actionLabel: string
+  actionTestId: string
+  onAction: () => void
+  testId: string
+}
+
+function PayOutcome({
+  kind,
+  title,
+  copy,
+  actionLabel,
+  actionTestId,
+  onAction,
+  testId,
+}: PayOutcomeProps): JSX.Element {
+  return (
+    <div className="pay-outcome" data-testid={testId}>
+      <div className={`status-icon status-icon-${kind}`} aria-hidden="true">
+        {kind === 'ok' ? '✓' : '✗'}
+      </div>
+      <h2 className="dialog-title">{title}</h2>
+      <p className="dialog-copy">{copy}</p>
+      <button className="button button-primary button-full" onClick={onAction} data-testid={actionTestId}>
+        {actionLabel}
+      </button>
+    </div>
+  )
+}
+
 export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDialogProps): JSX.Element {
   const [phase, setPhase] = useState<PayPhase>({ name: 'amount' })
   const [amount, setAmount] = useState('')
@@ -186,58 +219,39 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
         )}
 
         {phase.name === 'sent' && (
-          <div className="pay-outcome" data-testid="pay-sent">
-            <div className="status-icon status-icon-ok" aria-hidden="true">
-              ✓
-            </div>
-            <h2 className="dialog-title">Payment approved — waiting for the record...</h2>
-            <p className="dialog-copy">
-              Your payment appears in the book the moment it's permanently recorded.
-            </p>
-            <button
-              className="button button-primary button-full"
-              onClick={handleRecorded}
-              data-testid="pay-back-to-book"
-            >
-              Back to the book
-            </button>
-          </div>
+          <PayOutcome
+            kind="ok"
+            title="Payment approved — waiting for the record..."
+            copy="Your payment appears in the book the moment it's permanently recorded."
+            actionLabel="Back to the book"
+            actionTestId="pay-back-to-book"
+            onAction={handleRecorded}
+            testId="pay-sent"
+          />
         )}
 
         {phase.name === 'failed' && (
-          <div className="pay-outcome" data-testid="pay-failed">
-            <div className="status-icon status-icon-error" aria-hidden="true">
-              ✗
-            </div>
-            <h2 className="dialog-title">Payment didn't go through</h2>
-            <p className="dialog-copy">
-              Your payment didn&rsquo;t go through. Nothing was paid and nothing is in the book.
-            </p>
-            <button
-              className="button button-primary button-full"
-              onClick={onClose}
-              data-testid="pay-failed-close"
-            >
-              Close
-            </button>
-          </div>
+          <PayOutcome
+            kind="error"
+            title="Payment didn't go through"
+            copy={'Your payment didn\u2019t go through. Nothing was paid and nothing is in the book.'}
+            actionLabel="Close"
+            actionTestId="pay-failed-close"
+            onAction={onClose}
+            testId="pay-failed"
+          />
         )}
 
         {phase.name === 'error' && (
-          <div className="pay-outcome" data-testid="pay-error">
-            <div className="status-icon status-icon-error" aria-hidden="true">
-              ✗
-            </div>
-            <h2 className="dialog-title">Something went wrong</h2>
-            <p className="dialog-copy">{phase.message}</p>
-            <button
-              className="button button-primary button-full"
-              onClick={onClose}
-              data-testid="pay-error-close"
-            >
-              Close
-            </button>
-          </div>
+          <PayOutcome
+            kind="error"
+            title="Something went wrong"
+            copy={phase.message}
+            actionLabel="Close"
+            actionTestId="pay-error-close"
+            onAction={onClose}
+            testId="pay-error"
+          />
         )}
       </div>
     </div>

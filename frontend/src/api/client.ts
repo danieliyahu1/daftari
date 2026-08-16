@@ -22,6 +22,33 @@ export class ApiClientError extends Error {
   }
 }
 
+function buildUrl(base: string, path: string): string {
+  return base ? `${base}${path}` : `${BASE_URL}${path}`
+}
+
+function requestHeaders(hasBody: boolean): Record<string, string> | undefined {
+  return hasBody ? { 'Content-Type': 'application/json' } : undefined
+}
+
+async function parseResponseBody(response: Response): Promise<unknown> {
+  const text = await response.text().catch(() => '')
+  if (text === '') return undefined
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+function extractErrorMessage(parsed: unknown, status: number): string {
+  const body = parsed as { error?: ApiErrorBody } | undefined
+  const nestedMessage = body?.error?.message
+  if (nestedMessage) return nestedMessage
+  const flatMessage = (body as ApiErrorBody | undefined)?.message
+  if (flatMessage) return flatMessage
+  return `Request failed with status ${status}`
+}
+
 async function apiRequest<T>(
   base: string,
   method: string,
@@ -29,40 +56,22 @@ async function apiRequest<T>(
   body?: unknown,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<T> {
-  const url = base ? `${base}${path}` : `${BASE_URL}${path}`
+  const url = buildUrl(base, path)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const response = await fetch(url, {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: requestHeaders(body !== undefined),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })
 
-    let parsed: unknown = undefined
-    const text = await response.text().catch(() => '')
-    if (text !== '') {
-      try {
-        parsed = JSON.parse(text)
-      } catch {
-        parsed = text
-      }
-    }
+    const parsed = await parseResponseBody(response)
 
     if (!response.ok) {
-      const errBody = parsed as { error?: ApiErrorBody } | undefined
-      const nested = errBody?.error
-      const nestedMessage = typeof nested?.message === 'string' ? nested.message : ''
-      const flatBody = errBody as ApiErrorBody | undefined
-      const flatMessage = typeof flatBody?.message === 'string' ? flatBody.message : ''
-      const message =
-        nestedMessage !== ''
-          ? nestedMessage
-          : flatMessage !== ''
-            ? flatMessage
-            : `Request failed with status ${response.status}`
+      const message = extractErrorMessage(parsed, response.status)
       logger.warn('api error response', { status: response.status, url, method, message })
       throw new ApiClientError(response.status, message, parsed)
     }

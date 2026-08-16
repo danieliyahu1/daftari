@@ -1,13 +1,16 @@
 const SOMPI_PER_KAS = 100_000_000n
 
+function truncateMiddle(text: string, head: number, tail: number): string {
+  if (text.length <= head + tail + 3) return text
+  return `${text.slice(0, head)}...${text.slice(-tail)}`
+}
+
 export function shortAddress(address: string, head = 6, tail = 4): string {
-  if (address.length <= head + tail + 3) return address
-  return `${address.slice(0, head)}...${address.slice(-tail)}`
+  return truncateMiddle(address, head, tail)
 }
 
 export function shortTxid(txid: string, head = 8, tail = 6): string {
-  if (txid.length <= head + tail + 3) return txid
-  return `${txid.slice(0, head)}...${txid.slice(-tail)}`
+  return truncateMiddle(txid, head, tail)
 }
 
 export function sompiToKas(sompi: string): string {
