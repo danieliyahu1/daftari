@@ -119,6 +119,7 @@ export function useKastle(): KastleState & KastleActions {
     ...INITIAL_STATE,
     status: window.kastle ? 'disconnected' : 'not-installed',
   }))
+  const [installed, setInstalled] = useState<boolean>(() => !!window.kastle)
 
   const applyAccount = useCallback(async (address: string) => {
     const network = await readNetwork()
@@ -135,10 +136,44 @@ export function useKastle(): KastleState & KastleActions {
   }, [])
 
   useEffect(() => {
-    if (!window.kastle) {
+    if (installed) return
+    let stopped = false
+    const detect = () => {
+      if (stopped) return
+      if (window.kastle) {
+        setInstalled(true)
+        return
+      }
+      setState((prev) =>
+        prev.status === 'not-installed' ? prev : { ...prev, status: 'not-installed' },
+      )
+    }
+    detect()
+    const pollTimer = setInterval(detect, 200)
+    const stopTimer = setTimeout(() => clearInterval(pollTimer), 2000)
+    const handleFocus = () => detect()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') detect()
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      stopped = true
+      clearInterval(pollTimer)
+      clearTimeout(stopTimer)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [installed])
+
+  useEffect(() => {
+    if (!installed) {
       setState((prev) => ({ ...prev, status: 'not-installed' }))
       return
     }
+    const kastle = window.kastle
+    if (!kastle) return
+    setState((prev) => ({ ...prev, status: 'disconnected', error: null }))
 
     const handleAccountsChanged = (accounts: unknown) => {
       const addrs = accounts as string[]
@@ -157,10 +192,10 @@ export function useKastle(): KastleState & KastleActions {
       })
     }
 
-    window.kastle.on('accountsChanged', handleAccountsChanged)
-    window.kastle.on('networkChanged', handleNetworkChanged)
+    kastle.on('accountsChanged', handleAccountsChanged)
+    kastle.on('networkChanged', handleNetworkChanged)
 
-    window.kastle
+    kastle
       .getAccount()
       .then((account) => {
         const address = account?.address
@@ -171,10 +206,10 @@ export function useKastle(): KastleState & KastleActions {
       })
 
     return () => {
-      window.kastle?.off?.('accountsChanged', handleAccountsChanged)
-      window.kastle?.off?.('networkChanged', handleNetworkChanged)
+      kastle.off?.('accountsChanged', handleAccountsChanged)
+      kastle.off?.('networkChanged', handleNetworkChanged)
     }
-  }, [applyAccount])
+  }, [installed, applyAccount])
 
   const connect = useCallback(async () => {
     if (!window.kastle) {

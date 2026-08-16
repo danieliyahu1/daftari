@@ -63,6 +63,21 @@ describe('useKastle wallet layer', () => {
     expect(result.current.network).toBe('testnet-10')
   })
 
+  it('detects a wallet injected after mount', async () => {
+    uninstallKastle()
+    const { result } = renderHook(() => useKastle())
+    expect(result.current.status).toBe('not-installed')
+
+    installMockKastle()
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+    })
+
+    await waitFor(() => expect(result.current.status).toBe('connected'))
+    expect(result.current.address).toBe(ADDR)
+    expect(result.current.network).toBe('testnet-10')
+  })
+
   it('connects on request and lands on connected for the right network', async () => {
     const mock = installMockKastle({
       getAccount: vi
