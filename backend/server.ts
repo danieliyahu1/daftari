@@ -1,11 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { handleGetBook } from "./book-api";
+import { toRouteResult } from "./errors";
 import type { RouteResult } from "./errors";
+import { logger } from "./logger";
 import { SqliteMembershipStore } from "./membership-store";
 import {
   handleJoinMembership,
@@ -13,6 +16,7 @@ import {
   handleListMemberships,
 } from "./memberships-api";
 import { handleFinalizePayment, handlePreparePayment } from "./payments-api";
+import { requestContext } from "./request-context";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -20,9 +24,38 @@ function send(res: Response, result: RouteResult): void {
   res.status(result.status).json(result.body);
 }
 
+function isAsset(url: string): boolean {
+  return (
+    url.startsWith("/assets/") ||
+    /\.(js|css|map|png|jpe?g|gif|webp|svg|ico|woff2?|ttf)(\?.*)?$/i.test(url)
+  );
+}
+
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const requestId = randomUUID();
+  res.locals.requestId = requestId;
+  res.setHeader("X-Request-Id", requestId);
+  const start = Date.now();
+  res.on("finish", () => {
+    const status = res.statusCode;
+    const fields = {
+      requestId,
+      method: req.method,
+      url: req.originalUrl,
+      status,
+      durationMs: Date.now() - start,
+    };
+    if (status >= 500) logger.error("request failed", fields);
+    else if (status >= 400) logger.warn("request errored", fields);
+    else if (isAsset(req.originalUrl)) logger.debug("request", fields);
+    else logger.info("request", fields);
+  });
+  requestContext.run({ requestId }, next);
+});
 
 const store = new SqliteMembershipStore({
   filename: process.env.DAFTARI_DB ?? path.join(dirname, "..", "daftari.db"),
@@ -71,7 +104,41 @@ if (existsSync(distDir)) {
   });
 }
 
+// Central handler for anything that escapes the route handlers: malformed JSON
+// bodies, throws in middleware, and future unguarded routes.
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof SyntaxError && err.message.includes("JSON")) {
+    logger.warn("malformed JSON body", { url: req.originalUrl });
+    res.status(400).json({ error: { kind: "invalid", message: "Request body is not valid JSON" } });
+    return;
+  }
+  logger.error("unhandled route error", {
+    requestId: res.locals.requestId,
+    method: req.method,
+    url: req.originalUrl,
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
+  send(res, toRouteResult(err));
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error("unhandled promise rejection", {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+
+process.on("uncaughtException", (err) => {
+  logger.error("uncaught exception", { message: err.message, stack: err.stack });
+  process.exit(1);
+});
+
 const port = Number(process.env.PORT ?? 3001);
-app.listen(port, () => {
-  console.log(`Daftari API listening on http://localhost:${port}`);
+const server = app.listen(port, () => {
+  logger.info(`Daftari API listening on http://localhost:${port}`);
+});
+server.on("error", (err) => {
+  logger.error("server failed to start", { message: err.message, stack: err.stack });
+  process.exit(1);
 });

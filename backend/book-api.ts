@@ -6,6 +6,7 @@ import type { RouteResult } from "./errors";
 import { KaspaClient } from "./kaspa-client";
 import { isValidMembershipCode } from "./kaspa-address";
 import type { BalanceResponse, TxInput, TxModel, TxOutput } from "./kaspa-api-types";
+import { logger } from "./logger";
 
 export interface BookChain {
   getBalance(address: string): Promise<BalanceResponse>;
@@ -190,6 +191,14 @@ export async function handleGetBook(
       balance_sompi: toSompi(balance.balance).toString(),
       rows: bookRowsForPage(address, txs, network),
     };
+    logger.info("book fetched", {
+      address,
+      limit,
+      offset,
+      balance_sompi: book.balance_sompi,
+      rows: book.rows.length,
+      txs: txs.length,
+    });
     return { status: 200, body: book };
   } catch (err) {
     return toRouteResult(err);

@@ -33,6 +33,11 @@ export function BookPage(): JSX.Element {
       const result = await apiClient.getBook(groupCode, PAGE_SIZE, 0)
       setBook(result)
       setHasMore(result.rows.length === PAGE_SIZE)
+      logger.info('book loaded', {
+        code: groupCode,
+        rows: result.rows.length,
+        balance_sompi: result.balance_sompi,
+      })
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
       logger.warn('failed to load book', { error: message })
@@ -55,6 +60,10 @@ export function BookPage(): JSX.Element {
         prev ? { balance_sompi: prev.balance_sompi, rows: [...prev.rows, ...result.rows] } : prev,
       )
       setHasMore(result.rows.length === PAGE_SIZE)
+      logger.info('book rows appended', {
+        code: groupCode,
+        total: book.rows.length + result.rows.length,
+      })
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
       logger.warn('failed to load more rows', { error: message })

@@ -7,6 +7,7 @@ import type {
   TxModel,
   UtxoResponse,
 } from "./kaspa-api-types";
+import { logger } from "./logger";
 
 export type Endpoint =
   | "balance"
@@ -211,11 +212,13 @@ export class KaspaClient {
     if (cacheable) {
       const hit = this.cache.get(key);
         if (hit !== undefined && hit.expiresAt > Date.now()) {
+          logger.debug("upstream cache hit", { endpoint, path });
           return hit.value as T;
         }
     }
 
     for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
+      const attemptStart = Date.now();
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), this.timeoutMs);
       try {
@@ -228,8 +231,16 @@ export class KaspaClient {
           init.headers = { "content-type": "application/json" };
         }
 
+        logger.debug("upstream request", { endpoint, path, method, attempt: attempt + 1 });
         const res = await this.fetchImpl(this.baseUrl + path, init);
         const responseBody = await readBody(res);
+        logger.debug("upstream response", {
+          endpoint,
+          path,
+          method,
+          status: res.status,
+          durationMs: Date.now() - attemptStart,
+        });
 
         if (res.ok) {
           if (cacheable) {
@@ -243,6 +254,12 @@ export class KaspaClient {
 
         const retryable = RETRYABLE_STATUSES.has(res.status);
         if (retryable && attempt < this.maxAttempts - 1) {
+          logger.debug("upstream retry scheduled", {
+            endpoint,
+            path,
+            status: res.status,
+            attempt: attempt + 1,
+          });
           await this.sleeper(this.retryDelayMs(res, attempt));
           continue;
         }
@@ -255,6 +272,7 @@ export class KaspaClient {
         );
       } catch (err) {
         if (controller.signal.aborted) {
+          logger.warn("upstream request timed out", { endpoint, path, timeoutMs: this.timeoutMs });
           throw new TimeoutError(
             `Request timed out after ${this.timeoutMs}ms: ${method} ${path}`,
           );

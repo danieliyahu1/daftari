@@ -2,6 +2,7 @@ import { isValidMembershipCode } from "./kaspa-address";
 import { ChainError, UpstreamError } from "./kaspa-client";
 import type { UpstreamKind } from "./kaspa-client";
 import { TxBuilderError } from "./tx-builder";
+import { logger } from "./logger";
 
 export interface RouteResult {
   status: number;
@@ -136,6 +137,11 @@ export function toRouteResult(err: unknown): RouteResult {
     return { status: err.status, body: { error: body } };
   }
   if (err instanceof UpstreamError) {
+    logger.warn("upstream error", {
+      kind: err.kind,
+      status: err.status,
+      message: upstreamMessage(err),
+    });
     return {
       status: upstreamStatus(err.kind),
       body: {
@@ -144,13 +150,20 @@ export function toRouteResult(err: unknown): RouteResult {
     };
   }
   if (err instanceof ChainError) {
+    logger.warn("chain error", { category: err.category, message: err.message });
     return { status: 503, body: { error: { kind: "network", message: err.message } } };
   }
   if (err instanceof TxBuilderError) {
+    logger.warn("transaction build error", { kind: err.kind, message: err.message });
     return {
       status: 422,
       body: { error: { kind: txBuilderErrorKind(err.kind), message: err.message } },
     };
+  }
+  if (err instanceof Error) {
+    logger.error("unexpected error", { message: err.message, stack: err.stack });
+  } else {
+    logger.error("unexpected error", { value: String(err) });
   }
   return {
     status: 500,

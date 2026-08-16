@@ -127,6 +127,11 @@ export function useKastle(): KastleState & KastleActions {
         ? { ...prev, status: 'connected', address, network, error: null }
         : { ...prev, status: 'wrong-network', address, network, error: null },
     )
+    if (network === EXPECTED_NETWORK) {
+      logger.info('wallet connected', { address, network })
+    } else {
+      logger.warn('wallet on unexpected network', { address, network, expected: EXPECTED_NETWORK })
+    }
   }, [])
 
   useEffect(() => {
@@ -208,6 +213,11 @@ export function useKastle(): KastleState & KastleActions {
           ? { ...prev, status: 'connected', network, error: null }
           : { ...prev, status: 'wrong-network', network, error: null },
       )
+      if (network === EXPECTED_NETWORK) {
+        logger.info('network switched', { network })
+      } else {
+        logger.warn('network switch did not reach expected network', { network, expected: EXPECTED_NETWORK })
+      }
     } catch (err) {
       const message = isUserRejection(err)
         ? 'Network switch declined.'
@@ -217,6 +227,7 @@ export function useKastle(): KastleState & KastleActions {
   }, [state.address])
 
   const disconnect = useCallback(() => {
+    logger.info('wallet disconnected')
     setState((prev) => ({ ...prev, status: 'disconnected', address: null, network: null, error: null }))
   }, [])
 

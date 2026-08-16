@@ -26,6 +26,7 @@ export function JoinForm({ userAddress, onJoined }: JoinFormProps): JSX.Element 
     try {
       await apiClient.joinMembership({ user_address: userAddress, chama_address: trimmed })
       setCode('')
+      logger.info('joined chama', { chamaAddress: trimmed })
       onJoined(trimmed)
     } catch (err) {
       if (

@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import type { Membership } from "../shared/types";
+import { logger } from "./logger";
 
 export type JoinOutcome = "joined" | "already-member";
 
@@ -51,6 +52,7 @@ export class SqliteMembershipStore implements MembershipStore {
         "SELECT user_address, chama_address, created_at FROM memberships WHERE user_address = ? ORDER BY created_at ASC, chama_address ASC",
       )
       .all(userAddress);
+    logger.debug("memberships listed", { userAddress, count: rows.length });
     return rows.map((row) => toMembership(row));
   }
 
@@ -80,6 +82,11 @@ export class SqliteMembershipStore implements MembershipStore {
     const info = this.db
       .prepare("DELETE FROM memberships WHERE user_address = ? AND chama_address = ?")
       .run(userAddress, chamaAddress);
+    logger.debug("membership deleted", {
+      userAddress,
+      chamaAddress,
+      removed: Number(info.changes) > 0,
+    });
     return Number(info.changes) > 0;
   }
 

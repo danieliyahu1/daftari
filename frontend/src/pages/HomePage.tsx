@@ -25,6 +25,7 @@ export function HomePage(): JSX.Element {
     try {
       const result = await apiClient.listMemberships(wallet.address)
       setMemberships(result.memberships)
+      logger.info('memberships loaded', { count: result.memberships.length })
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
       logger.warn('failed to load memberships', { error: message })
@@ -52,6 +53,7 @@ export function HomePage(): JSX.Element {
       })
       setMemberships((prev) => prev.filter((m) => m.chama_address !== removing))
       setRemoving(null)
+      logger.info('group removed', { chamaAddress: removing })
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
       logger.warn('failed to remove group', { error: message })

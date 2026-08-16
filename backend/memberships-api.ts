@@ -2,6 +2,7 @@ import type { MembershipStore } from "./membership-store";
 import { isValidMembershipCode } from "./kaspa-address";
 import { requiredStr, toRouteResult } from "./errors";
 import type { RouteResult } from "./errors";
+import { logger } from "./logger";
 
 export function handleListMemberships(
   store: MembershipStore,
@@ -9,7 +10,9 @@ export function handleListMemberships(
 ): RouteResult {
   try {
     const userAddress = requiredStr(user, "user");
-    return { status: 200, body: { memberships: store.listForUser(userAddress) } };
+    const memberships = store.listForUser(userAddress);
+    logger.info("memberships listed", { userAddress, count: memberships.length });
+    return { status: 200, body: { memberships } };
   } catch (err) {
     return toRouteResult(err);
   }
@@ -28,10 +31,12 @@ export function handleJoinMembership(
     const userAddress = requiredStr(input.user_address, "user_address");
     const chamaAddress = requiredStr(input.chama_address, "chama_address");
     if (!isValidMembershipCode(chamaAddress)) {
+      logger.warn("membership join rejected", { userAddress, chamaAddress, reason: "invalid-code" });
       return { status: 422, body: { outcome: "invalid-code" } };
     }
 
     const result = store.join(userAddress, chamaAddress);
+    logger.info("membership join", { userAddress, chamaAddress, outcome: result.outcome });
     if (result.outcome === "joined") {
       return {
         status: 201,
@@ -60,6 +65,7 @@ export function handleLeaveMembership(
     const userAddress = requiredStr(input.user_address, "user_address");
     const chamaAddress = requiredStr(input.chama_address, "chama_address");
     store.leave(userAddress, chamaAddress);
+    logger.info("membership leave", { userAddress, chamaAddress });
     return { status: 200, body: { outcome: "left" } };
   } catch (err) {
     return toRouteResult(err);

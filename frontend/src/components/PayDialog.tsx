@@ -52,13 +52,15 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
 
   const handleApprove = async (): Promise<void> => {
     if (phase.name !== 'review') return
+    const { kas, sompi } = phase
     setPhase({ name: 'preparing' })
     try {
       const { signing_template } = await apiClient.preparePayment({
         user_address: userAddress,
         chama_address: groupCode,
-        amount_sompi: phase.sompi,
+        amount_sompi: sompi,
       })
+      logger.info('payment template prepared', { chamaAddress: groupCode, amountSompi: sompi })
 
       if (!window.kastle) {
         setPhase({ name: 'failed' })
@@ -68,21 +70,24 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
       const signedRaw = await window.kastle.signTx({ txJson: signing_template })
       const signed = extractSignedTx(signedRaw)
       if (!signed) {
-        setPhase({ name: 'review', kas: phase.kas, sompi: phase.sompi })
+        logger.warn('wallet returned no signed transaction', { chamaAddress: groupCode, amountSompi: sompi })
+        setPhase({ name: 'review', kas, sompi })
         return
       }
 
-      await apiClient.finalizePayment({ signed })
+      const { txid } = await apiClient.finalizePayment({ signed })
+      logger.info('payment sent', { chamaAddress: groupCode, amountSompi: sompi, txid })
       setPhase({ name: 'sent' })
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 0) {
+        logger.warn('payment network error', { chamaAddress: groupCode, amountSompi: sompi, message: err.message })
         setPhase({ name: 'error', message: err.message })
       } else if (err instanceof ApiClientError) {
-        logger.warn('payment rejected', { status: err.status, message: err.message })
+        logger.warn('payment rejected', { status: err.status, message: err.message, chamaAddress: groupCode, amountSompi: sompi })
         setPhase({ name: 'failed' })
       } else {
-        logger.warn('payment flow aborted', { error: err instanceof Error ? err.message : String(err) })
-        setPhase({ name: 'review', kas: phase.kas, sompi: phase.sompi })
+        logger.warn('payment flow aborted', { error: err instanceof Error ? err.message : String(err), chamaAddress: groupCode, amountSompi: sompi })
+        setPhase({ name: 'review', kas, sompi })
       }
     }
   }

@@ -11,6 +11,7 @@ import type {
   UtxoResponse,
 } from "./kaspa-api-types";
 import { buildTransfer, estimateFee } from "./tx-builder";
+import { logger } from "./logger";
 
 export interface PaymentChain {
   getUtxos(address: string): Promise<UtxoResponse[]>;
@@ -308,6 +309,16 @@ export async function handlePreparePayment(
       amountSompi,
       feerate,
     });
+    logger.info("payment prepared", {
+      userAddress,
+      chamaAddress,
+      amountSompi,
+      feerate,
+      utxos: utxos.length,
+      inputs: built.sign_inputs.length,
+      fee_sompi: built.fee_sompi,
+      change_sompi: built.change_sompi,
+    });
     return {
       status: 200,
       body: { signing_template: JSON.stringify(built.signing_template) },
@@ -328,8 +339,14 @@ export async function handleFinalizePayment(
     verifyAffordability(signed, inputAmounts, feerate);
     const response = await chain.broadcastTransaction(toSubmitTxModel(signed));
     if (response.transactionId !== undefined && response.transactionId !== "") {
+      logger.info("payment finalized", {
+        txid: response.transactionId,
+        inputs: signed.inputs.length,
+        outputs: signed.outputs.length,
+      });
       return { status: 200, body: { txid: response.transactionId } };
     }
+    logger.warn("payment rejected by node", { error: response.error });
     throw new AppError("conflict", response.error ?? "Transaction was rejected by the node");
   } catch (err) {
     return toRouteResult(err);
