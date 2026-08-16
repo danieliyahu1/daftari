@@ -19,6 +19,8 @@ import {
 import { handleFinalizePayment, handlePreparePayment } from "./payments-api";
 import type { PaymentChain, ConfirmPolicy } from "./payments-api";
 import { requestContext } from "./request-context";
+import { handleRegisterWallet, handleResolveWallets } from "./wallets-api";
+import type { WalletStore } from "./wallet-store";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,12 +37,13 @@ function isAsset(url: string): boolean {
 
 export interface AppDependencies {
   store: MembershipStore;
+  walletStore: WalletStore;
   bookChain?: BookChain;
   paymentChain?: PaymentChain;
   confirmPolicy?: ConfirmPolicy;
 }
 
-export function createApp({ store, bookChain, paymentChain, confirmPolicy }: AppDependencies): express.Express {
+export function createApp({ store, walletStore, bookChain, paymentChain, confirmPolicy }: AppDependencies): express.Express {
   const app = express();
   app.use(express.json());
   app.use(cors());
@@ -81,6 +84,14 @@ export function createApp({ store, bookChain, paymentChain, confirmPolicy }: App
 
   app.delete("/api/memberships", (req: Request, res: Response) => {
     send(res, handleLeaveMembership(store, req.body ?? {}));
+  });
+
+  app.post("/api/wallets/register", (req: Request, res: Response) => {
+    send(res, handleRegisterWallet(walletStore, req.body ?? {}));
+  });
+
+  app.get("/api/wallets/resolve", (req: Request, res: Response) => {
+    send(res, handleResolveWallets(walletStore, req.query.addresses));
   });
 
   app.get("/api/chamas/:code/book", async (req: Request, res: Response) => {

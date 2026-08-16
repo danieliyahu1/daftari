@@ -18,6 +18,15 @@ export interface Membership {
   created_at: number;
 }
 
+export type WalletKind = "user" | "group";
+
+export interface Wallet {
+  address: string;
+  name: string;
+  kind: WalletKind;
+  created_at: number;
+}
+
 export type BookDirection = "in" | "out";
 
 export interface BookRow {

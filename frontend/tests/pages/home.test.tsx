@@ -1,8 +1,10 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+import type { Wallet } from '../../../shared/types'
 import { ToastProvider } from '../../src/components/Toaster'
 import { HomePage } from '../../src/pages/HomePage'
+import { RegistryProvider } from '../../src/wallet/registry'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
 import { CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
@@ -12,9 +14,11 @@ function renderHome(): void {
   render(
     <ToastProvider>
       <WalletProvider>
-        <MemoryRouter>
-          <HomePage />
-        </MemoryRouter>
+        <RegistryProvider>
+          <MemoryRouter>
+            <HomePage />
+          </MemoryRouter>
+        </RegistryProvider>
       </WalletProvider>
     </ToastProvider>,
   )
@@ -64,6 +68,41 @@ describe('HomePage', () => {
     await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
     expect(screen.getByText('You')).toBeInTheDocument()
     expect(screen.getByText('kaspatest:...mkukdl')).toBeInTheDocument()
+  })
+
+  it('shows the registered name with a person mark when the wallet is named', async () => {
+    const wallet: Wallet = {
+      address: USER_ADDRESS,
+      name: 'Amina',
+      kind: 'user',
+      created_at: 1_700_000_000_000,
+    }
+    stubApi({
+      'GET /api/wallets/resolve': { body: { wallets: [wallet] } },
+      'GET /api/memberships': { body: { memberships: [] } },
+    })
+    renderHome()
+    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
+    expect(screen.getByText('Amina')).toBeInTheDocument()
+    expect(screen.getByTestId('identity-kind')).toHaveTextContent('person')
+    expect(screen.queryByText('kaspatest:...mkukdl')).not.toBeInTheDocument()
+  })
+
+  it('marks the registered name as a group when the kind is group', async () => {
+    const wallet: Wallet = {
+      address: USER_ADDRESS,
+      name: 'the plot chama',
+      kind: 'group',
+      created_at: 1_700_000_000_000,
+    }
+    stubApi({
+      'GET /api/wallets/resolve': { body: { wallets: [wallet] } },
+      'GET /api/memberships': { body: { memberships: [] } },
+    })
+    renderHome()
+    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
+    expect(screen.getByText('the plot chama')).toBeInTheDocument()
+    expect(screen.getByTestId('identity-kind')).toHaveTextContent('group')
   })
 
   it('keeps a single group when joining one already joined', async () => {

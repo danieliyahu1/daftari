@@ -3,14 +3,16 @@ import { fileURLToPath } from "node:url";
 import { createApp } from "./app";
 import { logger } from "./logger";
 import { SqliteMembershipStore } from "./membership-store";
+import { SqliteWalletStore } from "./wallet-store";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const store = new SqliteMembershipStore({
-  filename: process.env.DAFTARI_DB ?? path.join(dirname, "..", "daftari.db"),
-});
+const dbFilename = process.env.DAFTARI_DB ?? path.join(dirname, "..", "daftari.db");
 
-const app = createApp({ store });
+const walletStore = new SqliteWalletStore({ filename: dbFilename });
+const store = new SqliteMembershipStore({ filename: dbFilename });
+
+const app = createApp({ store, walletStore });
 
 process.on("unhandledRejection", (reason) => {
   logger.error("unhandled promise rejection", {

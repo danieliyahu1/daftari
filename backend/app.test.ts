@@ -5,6 +5,7 @@ import type { BookChain } from "./book-api";
 import type { TxModel } from "./kaspa-api-types";
 import { SqliteMembershipStore } from "./membership-store";
 import type { PaymentChain } from "./payments-api";
+import { SqliteWalletStore } from "./wallet-store";
 
 const USER_ADDRESS = "kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl";
 const VALID_CODE = "kaspatest:qpchy8753068rt2szvwxc0yr0kl38sjxqs0cg7xe97y6tzxh5h5wx09rle5a7";
@@ -91,6 +92,7 @@ interface TestServer {
   base: string;
   server: Server;
   store: SqliteMembershipStore;
+  walletStore: SqliteWalletStore;
 }
 
 async function startServer(
@@ -98,13 +100,14 @@ async function startServer(
   confirmPolicy?: { maxAttempts: number; baseDelayMs: number; maxDelayMs: number; sleeper?: (ms: number) => Promise<void> },
 ): Promise<TestServer> {
   const store = new SqliteMembershipStore();
-  const app = createApp({ store, bookChain: bookChainStub(), paymentChain, confirmPolicy });
+  const walletStore = new SqliteWalletStore();
+  const app = createApp({ store, walletStore, bookChain: bookChainStub(), paymentChain, confirmPolicy });
   const server = await new Promise<Server>((resolve) => {
     const listener = app.listen(0, () => resolve(listener));
   });
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : 0;
-  return { base: `http://127.0.0.1:${port}`, server, store };
+  return { base: `http://127.0.0.1:${port}`, server, store, walletStore };
 }
 
 async function post(base: string, path: string, body: unknown): Promise<Response> {
@@ -121,6 +124,7 @@ describe("HTTP API", () => {
   afterEach(async () => {
     testServer.server.close();
     testServer.store.close();
+    testServer.walletStore.close();
   });
 
   it("serves a health check", async () => {
@@ -183,6 +187,58 @@ describe("HTTP API", () => {
     });
     expect(response.status).toBe(422);
     expect(await response.json()).toEqual({ outcome: "invalid-code" });
+  });
+
+  it("registers a wallet through the API", async () => {
+    testServer = await startServer();
+    const response = await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Amina",
+      kind: "user",
+    });
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { wallet: { address: string; name: string; kind: string } };
+    expect(body.wallet).toMatchObject({ address: USER_ADDRESS, name: "Amina", kind: "user" });
+  });
+
+  it("rejects a second registration of the same wallet with a conflict", async () => {
+    testServer = await startServer();
+    await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Amina",
+      kind: "user",
+    });
+    const response = await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Bob",
+      kind: "group",
+    });
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as { error: { kind: string } }).error.kind).toBe("conflict");
+  });
+
+  it("resolves registered names in bulk and omits the unknown", async () => {
+    testServer = await startServer();
+    await post(testServer.base, "/api/wallets/register", {
+      address: USER_ADDRESS,
+      name: "Amina",
+      kind: "user",
+    });
+
+    const response = await fetch(
+      `${testServer.base}/api/wallets/resolve?addresses=${encodeURIComponent(`${USER_ADDRESS},${VALID_CODE}`)}`,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      wallets: [
+        {
+          address: USER_ADDRESS,
+          name: "Amina",
+          kind: "user",
+          created_at: expect.any(Number),
+        },
+      ],
+    });
   });
 
   it("rejects a malformed JSON body", async () => {

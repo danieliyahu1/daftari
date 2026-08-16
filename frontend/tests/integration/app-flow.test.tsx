@@ -1,12 +1,21 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { BookRow, Membership } from '../../../shared/types'
+import type { BookRow, Membership, Wallet } from '../../../shared/types'
 import App from '../../src/App'
 import { CHAMA_ADDRESS, installConnectedKastle, uninstallKastle, USER_ADDRESS } from '../helpers'
 
-function setupBackend(): void {
+function setupBackend(options: { named?: boolean } = {}): void {
   const memberships: Membership[] = []
   const rows: BookRow[] = []
+  const wallets = new Map<string, Wallet>()
+  if (options.named !== false) {
+    wallets.set(USER_ADDRESS, {
+      address: USER_ADDRESS,
+      name: 'Amina',
+      kind: 'user',
+      created_at: 1_700_000_000_000,
+    })
+  }
   let balance = 0n
   const TXID = 'dd'.repeat(32)
 
@@ -29,6 +38,20 @@ function setupBackend(): void {
         headers: { 'Content-Type': 'application/json' },
       })
 
+    if (method === 'GET' && path === '/api/wallets/resolve') {
+      const addresses = (parsed.searchParams.get('addresses') ?? '').split(',').filter(Boolean)
+      return json(200, { wallets: addresses.map((a) => wallets.get(a)).filter(Boolean) })
+    }
+    if (method === 'POST' && path === '/api/wallets/register') {
+      const wallet: Wallet = {
+        address: String(body.address ?? ''),
+        name: String(body.name ?? ''),
+        kind: body.kind === 'group' ? 'group' : 'user',
+        created_at: 1_700_000_000_000,
+      }
+      wallets.set(wallet.address, wallet)
+      return json(201, { wallet })
+    }
     if (method === 'GET' && path === '/api/memberships') {
       return json(200, { memberships })
     }
@@ -205,5 +228,46 @@ describe('whole demo flow — integration', () => {
 
     await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
     expect(screen.queryAllByTestId('group-card')).toHaveLength(0)
+  })
+
+  it('registers a first-time wallet and recognizes it on the next sign-in', async () => {
+    setupBackend({ named: false })
+    render(<App />)
+
+    // Connected but unnamed: the naming gate blocks the app (FR-8, SC-3)
+    await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('naming-screen')).toBeInTheDocument())
+    expect(screen.queryByTestId('home')).not.toBeInTheDocument()
+
+    // Exact prompt copy; nothing preselected and continue disabled until a kind is chosen (SC-10)
+    expect(screen.getByText('Give this wallet a name.')).toBeInTheDocument()
+    expect(screen.getByTestId('kind-option-user')).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByTestId('kind-option-group')).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByTestId('naming-submit')).toBeDisabled()
+
+    await userEvent.type(screen.getByTestId('naming-name-input'), 'Amina')
+    await userEvent.click(screen.getByTestId('kind-option-user'))
+    expect(screen.getByTestId('naming-submit')).toBeEnabled()
+    await userEvent.click(screen.getByTestId('naming-submit'))
+
+    // Success copy, then the app renders and the profile header shows the name (FR-17)
+    await waitFor(() => expect(screen.getByTestId('naming-success-copy')).toBeInTheDocument())
+    expect(screen.getByTestId('naming-success-copy')).toHaveTextContent(
+      'You\u2019re all set, Amina.',
+    )
+    await waitFor(
+      () => expect(screen.getByTestId('home-empty')).toBeInTheDocument(),
+      { timeout: 3_000 },
+    )
+    expect(screen.getByText('Amina')).toBeInTheDocument()
+    expect(screen.getByTestId('identity-kind')).toHaveTextContent('person')
+
+    // Disconnect and reconnect: recognized by name, no naming asked again (FR-1/7, SC-2)
+    await userEvent.click(screen.getByTestId('disconnect-button'))
+    await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('connect-button'))
+    await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
+    expect(screen.queryByTestId('naming-screen')).not.toBeInTheDocument()
   })
 })
