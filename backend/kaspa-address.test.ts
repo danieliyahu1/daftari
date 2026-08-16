@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  decodeAddressPayload,
   isWellFormedKaspaAddress,
   isValidMembershipCode,
 } from "./kaspa-address";
@@ -80,5 +81,28 @@ describe("isValidMembershipCode", () => {
     const address = VALID_TESTNET[0];
     const corrupted = address.slice(0, -1) + (address.endsWith("a") ? "p" : "a");
     expect(isValidMembershipCode(corrupted)).toBe(false);
+  });
+});
+
+describe("decodeAddressPayload", () => {
+  it("decodes the version and payload of a v0 address", () => {
+    const decoded = decodeAddressPayload(VALID_TESTNET[0], "kaspatest");
+    expect(decoded).not.toBeNull();
+    expect(decoded?.version).toBe(0);
+    expect(decoded?.payload.length).toBe(32);
+    expect(Array.from(decoded?.payload ?? [])).toEqual(
+      new Array(32).fill(0),
+    );
+  });
+
+  it("returns null for a corrupted checksum", () => {
+    const address = VALID_TESTNET[0];
+    const corrupted = address.slice(0, -1) + (address.endsWith("q") ? "p" : "q");
+    expect(decodeAddressPayload(corrupted, "kaspatest")).toBeNull();
+  });
+
+  it("returns null for the wrong prefix", () => {
+    expect(decodeAddressPayload(VALID_TESTNET[0], "kaspa")).toBeNull();
+    expect(decodeAddressPayload(VALID_MAINNET[0], "kaspatest")).toBeNull();
   });
 });

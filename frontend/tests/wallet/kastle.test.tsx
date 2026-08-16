@@ -162,6 +162,23 @@ describe('useKastle wallet layer', () => {
     expect(result.current.error).toBe("Couldn't connect your wallet.")
   })
 
+  it('clears a recorded error on demand', async () => {
+    installMockKastle({
+      getAccount: vi.fn(async () => {
+        throw new Error('disconnected')
+      }),
+    })
+    const { result } = renderHook(() => useKastle())
+    await act(async () => {
+      await result.current.connect()
+    })
+    expect(result.current.error).toBe("Couldn't connect your wallet.")
+
+    act(() => result.current.clearError())
+
+    expect(result.current.error).toBeNull()
+  })
+
   it('treats a user-cancelled connect as cancelled, not an error', async () => {
     installMockKastle({
       getAccount: vi.fn(async () => {

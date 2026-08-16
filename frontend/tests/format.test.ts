@@ -1,4 +1,11 @@
-import { formatDate, kasToSompi, shortAddress, shortTxid, sompiToKas } from '../src/format'
+import {
+  formatDate,
+  formatKastleNetwork,
+  kasToSompi,
+  shortAddress,
+  shortTxid,
+  sompiToKas,
+} from '../src/format'
 
 describe('sompiToKas', () => {
   it('converts whole KAS with thousands separators', () => {
@@ -80,5 +87,18 @@ describe('formatDate', () => {
   it('handles missing dates', () => {
     expect(formatDate(0)).toBe('—')
     expect(formatDate(Number.NaN)).toBe('—')
+  })
+})
+
+describe('formatKastleNetwork', () => {
+  it('maps the known networks to themselves', () => {
+    expect(formatKastleNetwork('testnet-10')).toBe('testnet-10')
+    expect(formatKastleNetwork('testnet-11')).toBe('testnet-11')
+    expect(formatKastleNetwork('mainnet')).toBe('mainnet')
+  })
+
+  it('labels unknown and missing networks', () => {
+    expect(formatKastleNetwork('kaspa_testnet_10')).toBe('kaspa_testnet_10')
+    expect(formatKastleNetwork(null)).toBe('unknown')
   })
 })
