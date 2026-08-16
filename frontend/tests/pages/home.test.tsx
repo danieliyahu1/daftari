@@ -58,6 +58,37 @@ describe('HomePage', () => {
     expect(screen.getByText('Your chamas')).toBeInTheDocument()
   })
 
+  it('shows the connected user identifier at the top', async () => {
+    stubApi({ 'GET /api/memberships': { body: { memberships: [] } } })
+    renderHome()
+    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
+    expect(screen.getByText('You')).toBeInTheDocument()
+    expect(screen.getByText('kaspatest:...mkukdl')).toBeInTheDocument()
+  })
+
+  it('keeps a single group when joining one already joined', async () => {
+    const memberships = [
+      {
+        user_address: USER_ADDRESS,
+        chama_address: CHAMA_ADDRESS,
+        created_at: 1_700_000_000_000,
+      },
+    ]
+    stubApi({
+      'GET /api/memberships': { body: () => ({ memberships }) },
+      'POST /api/memberships': {
+        status: 200,
+        body: { outcome: 'already-member', membership: memberships[0] },
+      },
+    })
+    renderHome()
+    await waitFor(() => expect(screen.getAllByTestId('group-card')).toHaveLength(1))
+    await userEvent.type(screen.getByTestId('join-code-input'), CHAMA_ADDRESS)
+    await userEvent.click(screen.getByTestId('join-submit'))
+    await waitFor(() => expect(screen.queryByTestId('join-error')).not.toBeInTheDocument())
+    expect(screen.getAllByTestId('group-card')).toHaveLength(1)
+  })
+
   it('adds a group that appears immediately after a valid join', async () => {
     const memberships: Array<{
       user_address: string

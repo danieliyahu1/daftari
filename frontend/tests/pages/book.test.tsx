@@ -82,6 +82,7 @@ describe('BookPage', () => {
     expect(within(row).getByTestId('book-date')).toHaveTextContent(/2023/)
     const proof = within(row).getByTestId('book-proof')
     expect(proof).toHaveAttribute('href', PROOF)
+    expect(proof).toHaveAttribute('target', '_blank')
     expect(proof).toHaveTextContent('Open the permanent record')
   })
 
@@ -146,5 +147,14 @@ describe('BookPage', () => {
     renderBook()
     await waitFor(() => expect(screen.getByTestId('back-link')).toBeInTheDocument())
     expect(screen.getByTestId('back-link')).toHaveTextContent('Your chamas')
+  })
+
+  it('hides the pay entry point on the wrong network', async () => {
+    const mock = installConnectedKastle()
+    ;(mock.getNetwork as ReturnType<typeof vi.fn>).mockResolvedValue('mainnet')
+    stubApi({ [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } } })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
   })
 })

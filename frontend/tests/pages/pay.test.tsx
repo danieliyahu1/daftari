@@ -120,6 +120,44 @@ describe('PayDialog pay-in flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps Next disabled until an amount is entered', async () => {
+    bookStub()
+    renderBookWithWallet()
+    await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('pay-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    expect(within(dialog).getByTestId('pay-next')).toBeDisabled()
+  })
+
+  it('shows the failure copy when the payment cannot be afforded', async () => {
+    stubApi({
+      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [PREPARE]: {
+        status: 422,
+        body: { error: { kind: 'policy', message: 'Insufficient funds' } },
+      },
+      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+    })
+    renderBookWithWallet()
+    await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('pay-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    await userEvent.type(within(dialog).getByTestId('pay-amount-input'), '1')
+    await userEvent.click(within(dialog).getByTestId('pay-next'))
+    await userEvent.click(within(dialog).getByTestId('pay-approve'))
+
+    await waitFor(() => expect(within(dialog).getByTestId('pay-failed')).toBeInTheDocument())
+    expect(
+      within(dialog).getByText(
+        'Your payment didn\u2019t go through. Nothing was paid and nothing is in the book.',
+      ),
+    ).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/payments/finalize'),
+      expect.anything(),
+    )
+  })
+
   it('shows the failure copy when the payment does not go through', async () => {
     stubApi({
       [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
