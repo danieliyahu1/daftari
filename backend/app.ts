@@ -97,8 +97,9 @@ export function createApp({ store, bookChain, paymentChain }: AppDependencies): 
     send(res, result);
   });
 
+  const isProduction = process.env.NODE_ENV === "production";
   const distDir = path.join(dirname, "..", "frontend", "dist");
-  if (existsSync(distDir)) {
+  if (isProduction && existsSync(distDir)) {
     app.use(express.static(distDir));
     app.use((req: Request, res: Response) => {
       if (req.method === "GET" && req.accepts("html")) {
