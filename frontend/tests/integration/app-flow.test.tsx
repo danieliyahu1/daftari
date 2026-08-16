@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { BookRow, Wallet } from '../../../shared/types'
 import App from '../../src/App'
@@ -23,15 +23,7 @@ function setupBackend(options: { named?: boolean } = {}): void {
     created_at: 1_700_000_000_000,
   })
   const TXID = 'dd'.repeat(32)
-  rows.push({
-    direction: 'in',
-    amount_sompi: '1000000000',
-    other_address: USER_ADDRESS,
-    date: 1_700_000_000_000,
-    txid: TXID,
-    proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
-  })
-  const balance = 1_000_000_000n
+  let balance = 0n
 
   global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -126,6 +118,15 @@ function setupBackend(options: { named?: boolean } = {}): void {
       if (body.signed === 'REJECT') {
         return json(422, { error: { kind: 'conflict', message: 'Transaction was rejected by the node' } })
       }
+      rows.unshift({
+        direction: 'in',
+        amount_sompi: '1000000000',
+        other_address: USER_ADDRESS,
+        date: 1_700_000_000_000,
+        txid: TXID,
+        proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+      })
+      balance += 1_000_000_000n
       return json(200, { status: 'recorded', txid: TXID })
     }
     return json(404, { error: { kind: 'invalid', message: 'not found' } })
@@ -149,7 +150,7 @@ describe('whole demo flow — integration', () => {
     window.history.pushState({}, '', '/')
   })
 
-  it('a group adds a person from its book, and the person then sees the chama and its book', async () => {
+  it('a member invites a person to contribute; the person pays in; the group brings them in', async () => {
     setupBackend()
     render(<App />)
 
@@ -170,7 +171,39 @@ describe('whole demo flow — integration', () => {
       screen.getByText('Your people appear here as they join.'),
     ).toBeInTheDocument()
 
-    // Open the group's book and add Amina from the row (FR: the circle decides)
+    // The group opens its empty book and creates an invitation link
+    navigateTo(`/groups/${encodeURIComponent(CHAMA_ADDRESS)}`)
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('invite-button'))
+    const inviteLink = (screen.getByTestId('invite-link') as HTMLInputElement).value
+    await userEvent.click(screen.getByTestId('invite-close'))
+
+    // Amina opens the invitation and pays in — no code, one tap
+    await userEvent.click(screen.getByTestId('disconnect-button'))
+    await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
+    installConnectedKastle(USER_ADDRESS)
+    await userEvent.click(screen.getByTestId('connect-button'))
+    await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
+    navigateTo(new URL(inviteLink).pathname)
+    await waitFor(() => expect(screen.getByTestId('contribute-group')).toBeInTheDocument())
+    expect(screen.getByText('Plot')).toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('contribute-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    await userEvent.type(within(dialog).getByTestId('pay-amount-input'), '10')
+    await userEvent.click(within(dialog).getByTestId('pay-next'))
+    await userEvent.click(within(dialog).getByTestId('pay-approve'))
+    await waitFor(() => expect(within(dialog).getByTestId('pay-sent')).toBeInTheDocument())
+    await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
+    await waitFor(() =>
+      expect(screen.getByText('Your contribution is in the book.')).toBeInTheDocument(),
+    )
+
+    // The group sees Amina's contribution and brings her in
+    await userEvent.click(screen.getByTestId('disconnect-button'))
+    await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
+    installConnectedKastle(CHAMA_ADDRESS)
+    await userEvent.click(screen.getByTestId('connect-button'))
+    await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
     navigateTo(`/groups/${encodeURIComponent(CHAMA_ADDRESS)}`)
     await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
     expect(screen.getByTestId('add-member')).toBeInTheDocument()
@@ -182,7 +215,7 @@ describe('whole demo flow — integration', () => {
     await waitFor(() => expect(screen.getByTestId('roster-member')).toBeInTheDocument())
     expect(screen.getByText('Amina')).toBeInTheDocument()
 
-    // Back on Amina's wallet, the chama appears on her home
+    // Amina's home now shows Plot, and she can open the book as a member
     await userEvent.click(screen.getByTestId('disconnect-button'))
     await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
     installConnectedKastle(USER_ADDRESS)
@@ -190,8 +223,6 @@ describe('whole demo flow — integration', () => {
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByTestId('group-card')).toBeInTheDocument())
     expect(screen.getByText('Plot')).toBeInTheDocument()
-
-    // Amina opens the book as a member — no add controls for her
     await userEvent.click(screen.getByTestId('group-card').querySelector('a')!)
     await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
     expect(screen.getByTestId('book-amount')).toHaveTextContent('+10 KAS')

@@ -5,6 +5,7 @@ import { apiClient, ApiClientError } from '../api/client'
 import { BackLink } from '../components/BackLink'
 import { BookRow } from '../components/BookRow'
 import { EmptyState } from '../components/EmptyState'
+import { InviteDialog } from '../components/InviteDialog'
 import { PayDialog } from '../components/PayDialog'
 import { PAGE_SIZE } from '../constants'
 import { sompiToKas } from '../format'
@@ -22,6 +23,7 @@ export function BookPage(): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [inviting, setInviting] = useState(false)
   const [adding, setAdding] = useState<string | null>(null)
 
   const groupCode = code ?? ''
@@ -171,6 +173,13 @@ export function BookPage(): JSX.Element {
           {canPay && (
             <div className="book-actions">
               <button
+                className="button button-secondary button-full"
+                onClick={() => setInviting(true)}
+                data-testid="invite-button"
+              >
+                Invite someone to contribute
+              </button>
+              <button
                 className="button button-primary button-full"
                 onClick={() => setPaying(true)}
                 data-testid="pay-button"
@@ -190,6 +199,8 @@ export function BookPage(): JSX.Element {
           onRecorded={() => void load()}
         />
       )}
+
+      {inviting && <InviteDialog groupCode={groupCode} onClose={() => setInviting(false)} />}
     </div>
   )
 }

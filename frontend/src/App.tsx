@@ -4,6 +4,7 @@ import { RegistryGate } from './components/RegistryGate'
 import { ToastProvider } from './components/Toaster'
 import { WalletStatus } from './components/WalletStatus'
 import { BookPage } from './pages/BookPage'
+import { ContributePage } from './pages/ContributePage'
 import { HomePage } from './pages/HomePage'
 import { RegistryProvider } from './wallet/registry'
 import { WalletProvider } from './wallet/WalletProvider'
@@ -29,6 +30,7 @@ function App(): JSX.Element {
                     <Routes>
                       <Route path="/" element={<HomePage />} />
                       <Route path="/groups/:code" element={<BookPage />} />
+                      <Route path="/contribute/:code" element={<ContributePage />} />
                     </Routes>
                   </RegistryGate>
                 </main>

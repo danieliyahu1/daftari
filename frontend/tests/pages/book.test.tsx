@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { BookPage } from '../../src/pages/BookPage'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
-import { bookStub, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
+import { bookStub, CHAMA_ADDRESS, installConnectedKastle, installDisconnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
 const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`
@@ -262,6 +262,56 @@ describe('BookPage', () => {
     stubApi({
       [BOOK_PATH]: {
         body: bookStub({ rows: [makeRow({ other_is_member: false })] }),
+      },
+    })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
+    expect(screen.queryByTestId('add-member')).not.toBeInTheDocument()
+  })
+
+  it('offers an invitation link to a member', async () => {
+    stubApi({ [BOOK_PATH]: { body: bookStub() } })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('invite-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('invite-button'))
+    expect(screen.getByTestId('invite-dialog-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('invite-link')).toHaveValue(
+      `${window.location.origin}/contribute/${encodeURIComponent(CHAMA_ADDRESS)}`,
+    )
+  })
+
+  it('shows a connect prompt instead of hanging on the spinner when the wallet is installed but not connected', async () => {
+    installDisconnectedKastle()
+    renderBook()
+    await waitFor(
+      () => expect(screen.getByText('Connect your wallet to see this chama.')).toBeInTheDocument(),
+      { timeout: 1_500 },
+    )
+    expect(screen.queryByTestId('book-loading')).not.toBeInTheDocument()
+  })
+
+  it("does not offer 'Pay into the group' to the group's own wallet", async () => {
+    installConnectedKastle(CHAMA_ADDRESS)
+    stubApi({ [BOOK_PATH]: { body: bookStub() } })
+    renderBook()
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
+  })
+
+  it("does not offer 'Add to chama' for a counterparty that is itself a registered group", async () => {
+    installConnectedKastle(CHAMA_ADDRESS)
+    stubApi({
+      [BOOK_PATH]: {
+        body: bookStub({
+          rows: [
+            makeRow({
+              other_address: 'kaspatest:qzvp9r3gxg4wvcl44lm5phav2gz5zfx2de7qqqwd3hjlr53rtsn6wefhk0aj8',
+              other_name: 'Kamau Traders',
+              other_kind: 'group',
+              other_is_member: false,
+            }),
+          ],
+        }),
       },
     })
     renderBook()
