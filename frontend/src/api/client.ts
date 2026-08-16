@@ -52,11 +52,17 @@ async function apiRequest<T>(
     }
 
     if (!response.ok) {
-      const errBody = parsed as ApiErrorBody | undefined
+      const errBody = parsed as { error?: ApiErrorBody } | undefined
+      const nested = errBody?.error
+      const nestedMessage = typeof nested?.message === 'string' ? nested.message : ''
+      const flatBody = errBody as ApiErrorBody | undefined
+      const flatMessage = typeof flatBody?.message === 'string' ? flatBody.message : ''
       const message =
-        errBody && typeof errBody.message === 'string' && errBody.message !== ''
-          ? errBody.message
-          : `Request failed with status ${response.status}`
+        nestedMessage !== ''
+          ? nestedMessage
+          : flatMessage !== ''
+            ? flatMessage
+            : `Request failed with status ${response.status}`
       logger.warn('api error response', { status: response.status, url, method, message })
       throw new ApiClientError(response.status, message, parsed)
     }
