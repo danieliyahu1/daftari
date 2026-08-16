@@ -86,6 +86,67 @@ export function isWellFormedKaspaAddress(raw: string, prefix: string): boolean {
   return expected === actual;
 }
 
+export interface DecodedAddress {
+  version: number;
+  payload: Uint8Array;
+}
+
+export function decodeAddressPayload(
+  address: string,
+  prefix: string,
+): DecodedAddress | null {
+  if (!isWellFormedKaspaAddress(address, prefix)) {
+    return null;
+  }
+  const separator = address.lastIndexOf(":");
+  const dataPart = address.slice(separator + 1);
+  const values: number[] = [];
+  for (const char of dataPart) {
+    values.push(CHARSET.indexOf(char));
+  }
+  const payloadValues = values.slice(0, values.length - CHECKSUM_WORDS);
+  const bytes = convert5to8(payloadValues);
+  if (bytes.length < 1) {
+    return null;
+  }
+  return { version: bytes[0], payload: Uint8Array.from(bytes.slice(1)) };
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  let hex = "";
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
+// Script public key hex (without the 2-byte version prefix) for a standard
+// v0 address, per the txscript templates: PubKey = <pubkey> OP_CHECKSIG,
+// PubKeyECDSA = <pubkey> OP_CHECKSIGECDSA, ScriptHash = OP_BLAKE2B <hash>
+// OP_EQUAL. The script public key version is 0 for all three address types.
+export function scriptPublicKeyForAddress(
+  address: string,
+  prefix: string,
+): string | null {
+  const decoded = decodeAddressPayload(address, prefix);
+  if (decoded === null) {
+    return null;
+  }
+  switch (decoded.version) {
+    case 0:
+      if (decoded.payload.length !== 32) return null;
+      return `20${bytesToHex(decoded.payload)}ac`;
+    case 1:
+      if (decoded.payload.length !== 33) return null;
+      return `21${bytesToHex(decoded.payload)}ab`;
+    case 8:
+      if (decoded.payload.length !== 32) return null;
+      return `aa20${bytesToHex(decoded.payload)}87`;
+    default:
+      return null;
+  }
+}
+
 export function isValidMembershipCode(
   code: string,
   config: NetworkConfig = getNetworkConfig(),
