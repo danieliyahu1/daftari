@@ -30,7 +30,7 @@ interface PayOutcomeProps {
   actionTestId: string
   onAction: () => void
   testId: string
-  children?: JSX.Element
+  children?: React.ReactNode
 }
 
 function PayOutcome({
