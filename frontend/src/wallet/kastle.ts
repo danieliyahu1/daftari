@@ -22,16 +22,16 @@ export interface KastleState {
   error: string | null
 }
 
-export interface KastleSignRequest {
-  txJson: string
-}
-
 export interface KastleExtension {
   connect: () => Promise<unknown>
   getAccount: () => Promise<{ address: string; publicKey?: string } | { address?: string; publicKey?: string }>
   getNetwork: () => Promise<string>
   switchNetwork: (networkId: string) => Promise<unknown>
-  signTx: (request: KastleSignRequest) => Promise<string | { txJson?: string; signedTx?: string; tx?: string }>
+  signTx: (
+    networkId: string | undefined,
+    txJson: string,
+    scripts?: unknown,
+  ) => Promise<string | { txJson?: string; signedTx?: string; tx?: string }>
   on: (event: string, handler: (...args: unknown[]) => void) => void
   off?: (event: string, handler: (...args: unknown[]) => void) => void
 }

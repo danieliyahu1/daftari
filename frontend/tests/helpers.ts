@@ -14,7 +14,12 @@ export function installConnectedKastle(address: string = USER_ADDRESS): MockKast
     getAccount: vi.fn(async () => ({ address })),
     getNetwork: vi.fn(async () => 'testnet-10'),
     switchNetwork: vi.fn(async () => undefined),
-    signTx: vi.fn(async () => ({ txJson: 'signed-tx' })),
+    signTx: vi.fn(async (_networkId: string | undefined, txJson: unknown) => {
+      if (typeof txJson !== 'string') {
+        throw new Error('signTx: txJson must be a string')
+      }
+      return { txJson: 'signed-tx' }
+    }),
     on: (event: string, handler: (...args: unknown[]) => void) => {
       ;(handlers[event] ??= []).push(handler)
     },

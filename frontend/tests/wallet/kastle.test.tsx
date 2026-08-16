@@ -17,7 +17,14 @@ function installMockKastle(
     getAccount: overrides.getAccount ?? vi.fn(async () => ({ address: ADDR })),
     getNetwork: overrides.getNetwork ?? vi.fn(async () => 'testnet-10'),
     switchNetwork: overrides.switchNetwork ?? vi.fn(async () => undefined),
-    signTx: overrides.signTx ?? vi.fn(async () => ({ txJson: 'signed' })),
+    signTx:
+      overrides.signTx ??
+      vi.fn(async (_networkId: string | undefined, txJson: unknown) => {
+        if (typeof txJson !== 'string') {
+          throw new Error('signTx: txJson must be a string')
+        }
+        return { txJson: 'signed' }
+      }),
     on: (event: string, handler: (...args: unknown[]) => void) => {
       ;(handlers[event] ??= []).push(handler)
     },

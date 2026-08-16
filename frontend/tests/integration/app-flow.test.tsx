@@ -153,6 +153,38 @@ describe('whole demo flow — integration', () => {
     expect(screen.getAllByTestId('book-row')).toHaveLength(1)
   })
 
+  it('leaves no row in the book when the wallet cannot sign', async () => {
+    setupBackend()
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
+    await userEvent.type(screen.getByTestId('join-code-input'), CHAMA_ADDRESS)
+    await userEvent.click(screen.getByTestId('join-submit'))
+    await waitFor(() => expect(screen.getAllByTestId('group-card')).toHaveLength(1))
+    await userEvent.click(screen.getByTestId('group-card').querySelector('a')!)
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+
+    // The wallet rejects the sign request exactly as the real Kastle does
+    window.kastle!.signTx = async () => {
+      throw new Error('Expected string, received object')
+    }
+
+    await userEvent.click(screen.getByTestId('pay-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    await userEvent.type(within(dialog).getByTestId('pay-amount-input'), '10')
+    await userEvent.click(within(dialog).getByTestId('pay-next'))
+    await userEvent.click(within(dialog).getByTestId('pay-approve'))
+
+    await waitFor(() => expect(within(dialog).getByTestId('pay-error')).toBeInTheDocument())
+    expect(
+      within(dialog).getByText('Kastle couldn\u2019t sign the payment. Try again.'),
+    ).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByTestId('pay-error-close'))
+
+    // The unsignable payment must not appear in the book
+    expect(screen.queryAllByTestId('book-row')).toHaveLength(0)
+  })
+
   it('removes a group after confirmation and returns to the empty home state', async () => {
     setupBackend()
     render(<App />)

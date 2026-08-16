@@ -84,7 +84,7 @@ describe('PayDialog pay-in flow', () => {
       expect.stringContaining('/api/payments/prepare'),
       expect.objectContaining({ method: 'POST' }),
     )
-    expect(window.kastle?.signTx).toHaveBeenCalledWith({ txJson: '{"version":0}' })
+    expect(window.kastle?.signTx).toHaveBeenCalledWith('testnet-10', '{"version":0}')
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/payments/finalize'),
       expect.objectContaining({ method: 'POST' }),
@@ -163,5 +163,59 @@ describe('PayDialog pay-in flow', () => {
     expect(
       within(dialog).getByText(/Network error\. Check your connection and try again\./),
     ).toBeInTheDocument()
+  })
+
+  it('surfaces a signing failure instead of silently returning to review', async () => {
+    stubApi({
+      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [PREPARE]: { body: { signing_template: '{"version":0}' } },
+      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+    })
+    window.kastle!.signTx = vi.fn(async () => {
+      throw new Error('Expected string, received object')
+    })
+    renderBookWithWallet()
+    await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('pay-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    await userEvent.type(within(dialog).getByTestId('pay-amount-input'), '1')
+    await userEvent.click(within(dialog).getByTestId('pay-next'))
+    await userEvent.click(within(dialog).getByTestId('pay-approve'))
+
+    await waitFor(() => expect(within(dialog).getByTestId('pay-error')).toBeInTheDocument())
+    expect(
+      within(dialog).getByText('Kastle couldn\u2019t sign the payment. Try again.'),
+    ).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/payments/finalize'),
+      expect.anything(),
+    )
+  })
+
+  it('treats a declined signing as cancelled and never finalizes', async () => {
+    stubApi({
+      [BOOK_PATH]: { body: { balance_sompi: '0', rows: [] } },
+      [PREPARE]: { body: { signing_template: '{"version":0}' } },
+      [FINALIZE]: { body: { txid: 'ab'.repeat(32) } },
+    })
+    window.kastle!.signTx = vi.fn(async () => {
+      const error = new Error('user rejected the request')
+      ;(error as { code?: number }).code = 4001
+      throw error
+    })
+    renderBookWithWallet()
+    await waitFor(() => expect(screen.getByTestId('pay-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('pay-button'))
+    const dialog = screen.getByTestId('pay-dialog-panel')
+    await userEvent.type(within(dialog).getByTestId('pay-amount-input'), '1')
+    await userEvent.click(within(dialog).getByTestId('pay-next'))
+    await userEvent.click(within(dialog).getByTestId('pay-approve'))
+
+    await waitFor(() => expect(within(dialog).getByTestId('pay-back')).toBeInTheDocument())
+    expect(screen.getByText('Signing cancelled.')).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/payments/finalize'),
+      expect.anything(),
+    )
   })
 })

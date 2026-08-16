@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { apiClient, ApiClientError } from '../api/client'
 import { kasToSompi, shortAddress, sompiToKas } from '../format'
 import { logger } from '../logger'
-import { extractSignedTx } from '../wallet/kastle'
+import { extractSignedTx, EXPECTED_NETWORK, isUserRejection } from '../wallet/kastle'
+import { useToast } from './Toaster'
 
 export type PayPhase =
   | { name: 'amount' }
@@ -25,6 +26,7 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
   const [amount, setAmount] = useState('')
   const [amountError, setAmountError] = useState<string | null>(null)
   const firstFieldRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
 
   useEffect(() => {
     firstFieldRef.current?.focus()
@@ -67,7 +69,7 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
         return
       }
       setPhase({ name: 'signing' })
-      const signedRaw = await window.kastle.signTx({ txJson: signing_template })
+      const signedRaw = await window.kastle.signTx(EXPECTED_NETWORK, signing_template)
       const signed = extractSignedTx(signedRaw)
       if (!signed) {
         logger.warn('wallet returned no signed transaction', { chamaAddress: groupCode, amountSompi: sompi })
@@ -85,9 +87,13 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
       } else if (err instanceof ApiClientError) {
         logger.warn('payment rejected', { status: err.status, message: err.message, chamaAddress: groupCode, amountSompi: sompi })
         setPhase({ name: 'failed' })
-      } else {
-        logger.warn('payment flow aborted', { error: err instanceof Error ? err.message : String(err), chamaAddress: groupCode, amountSompi: sompi })
+      } else if (isUserRejection(err)) {
+        logger.warn('signing declined', { chamaAddress: groupCode, amountSompi: sompi })
+        showToast({ message: 'Signing cancelled.', kind: 'info' })
         setPhase({ name: 'review', kas, sompi })
+      } else {
+        logger.warn('signing failed', { error: err instanceof Error ? err.message : String(err), chamaAddress: groupCode, amountSompi: sompi })
+        setPhase({ name: 'error', message: 'Kastle couldn\u2019t sign the payment. Try again.' })
       }
     }
   }
