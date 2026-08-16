@@ -54,6 +54,7 @@ export function stubApi(stubs: ApiStubs): void {
       )
     }
     const body = typeof route.body === 'function' ? (route.body as () => unknown)() : route.body
+    if (body instanceof Response) return body
     return new Response(JSON.stringify(body ?? {}), {
       status: route.status ?? 200,
       headers: { 'Content-Type': 'application/json' },

@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toaster'
 import { WalletStatus } from './components/WalletStatus'
+import { BookPage } from './pages/BookPage'
 import { HomePage } from './pages/HomePage'
 import { WalletProvider } from './wallet/WalletProvider'
 
@@ -23,6 +24,7 @@ function App(): JSX.Element {
               <main className="app-main">
                 <Routes>
                   <Route path="/" element={<HomePage />} />
+                  <Route path="/groups/:code" element={<BookPage />} />
                 </Routes>
               </main>
               <footer className="app-footer">
