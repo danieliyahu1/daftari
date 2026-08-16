@@ -575,4 +575,27 @@ describe("isCounterpartyOf", () => {
     expect(await isCounterpartyOf(chain, GROUP, ALICE)).toBe(true);
     expect(getFullTransactions).toHaveBeenCalledTimes(1);
   });
+
+  it("finds a counterparty whose only transaction lies beyond the 500-tx scan window", async () => {
+    const { chain } = makeChain({
+      getFullTransactions: vi.fn(async (_address, { offset }: { limit: number; offset: number }) => {
+        if (offset >= 500) {
+          return [
+            tx({
+              inputs: [{ address: ALICE, amount: 1 }],
+              outputs: [{ address: GROUP, amount: 1 }],
+            }),
+          ];
+        }
+        return Array.from({ length: 50 }, (_, index) =>
+          tx({
+            txid: `${offset}-${index}`.padStart(64, "0"),
+            inputs: [{ address: BOB, amount: 1 }],
+            outputs: [{ address: GROUP, amount: 1 }],
+          }),
+        );
+      }),
+    });
+    expect(await isCounterpartyOf(chain, GROUP, ALICE)).toBe(true);
+  });
 });

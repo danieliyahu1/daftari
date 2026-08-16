@@ -225,6 +225,31 @@ describe("handleAddMember", () => {
     expect(s.listForChama(GROUP)).toHaveLength(1);
   });
 
+  it("refuses a group adding itself as a member", async () => {
+    const s = store();
+    const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
+    const result = await handleAddMember(s, w, {
+      group_address: GROUP,
+      member_address: GROUP,
+    }, makeChain(GROUP));
+    expect(result.status).toBe(422);
+    expect(s.isMember(GROUP, GROUP)).toBe(false);
+  });
+
+  it("refuses a registered group wallet as a member", async () => {
+    const s = store();
+    const w = walletStore([
+      { address: GROUP, name: "Plot", kind: "group" },
+      { address: OTHER, name: "Kamau Traders", kind: "group" },
+    ]);
+    const result = await handleAddMember(s, w, {
+      group_address: GROUP,
+      member_address: OTHER,
+    }, makeChain(OTHER));
+    expect(result.status).toBe(422);
+    expect(s.isMember(GROUP, OTHER)).toBe(false);
+  });
+
   it("surfaces an upstream error", async () => {
     const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
     const chain: BookChain = {

@@ -48,6 +48,18 @@ export function uninstallKastle(): void {
   delete window.kastle
 }
 
+export function installDisconnectedKastle(): void {
+  window.kastle = {
+    connect: vi.fn(async () => undefined),
+    getAccount: vi.fn(async () => ({})),
+    getNetwork: vi.fn(async () => 'testnet-10'),
+    switchNetwork: vi.fn(async () => undefined),
+    signTx: vi.fn(async () => ({ txJson: 'signed-tx' })),
+    on: () => {},
+    off: () => {},
+  } as unknown as MockKastle
+}
+
 export interface StubRoute {
   status?: number
   body?: unknown | (() => unknown)
