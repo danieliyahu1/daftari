@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { ToastProvider } from '../../src/components/Toaster'
 import { HomePage } from '../../src/pages/HomePage'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
@@ -11,7 +12,9 @@ function renderHome(): void {
   render(
     <ToastProvider>
       <WalletProvider>
-        <HomePage />
+        <MemoryRouter>
+          <HomePage />
+        </MemoryRouter>
       </WalletProvider>
     </ToastProvider>,
   )

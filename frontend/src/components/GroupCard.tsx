@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { shortAddress } from '../format'
 
 interface GroupCardProps {
@@ -9,12 +10,12 @@ interface GroupCardProps {
 export function GroupCard({ code, createdAt, onRemove }: GroupCardProps): JSX.Element {
   return (
     <li className="group-card" data-testid="group-card">
-      <a className="group-card-link" href={`/groups/${encodeURIComponent(code)}`}>
+      <Link className="group-card-link" to={`/groups/${encodeURIComponent(code)}`}>
         <span className="group-card-name mono" title={code}>
           {shortAddress(code, 10, 6)}
         </span>
         <span className="group-card-date">Joined {formatGroupDate(createdAt)}</span>
-      </a>
+      </Link>
       <button
         className="group-card-remove"
         onClick={() => onRemove(code)}
