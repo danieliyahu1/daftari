@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { KastleExtension } from '../../src/wallet/kastle'
-import { useKastle, withTimeout } from '../../src/wallet/kastle'
+import { extractSignedTx, isUserRejection, useKastle, withTimeout } from '../../src/wallet/kastle'
 
 const ADDR = 'kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl'
 
@@ -241,5 +241,46 @@ describe('withTimeout', () => {
     const assertion = expect(promise).rejects.toThrow('timed out')
     await vi.advanceTimersByTimeAsync(1000)
     await assertion
+  })
+})
+
+describe('extractSignedTx', () => {
+  it('passes a string result through unchanged', () => {
+    expect(extractSignedTx('{"version":0}')).toBe('{"version":0}')
+  })
+
+  it('reads the signed transaction from the common result shapes', () => {
+    expect(extractSignedTx({ txJson: 'a' })).toBe('a')
+    expect(extractSignedTx({ signedTx: 'b' })).toBe('b')
+    expect(extractSignedTx({ tx: 'c' })).toBe('c')
+  })
+
+  it('prefers txJson when more than one shape is present', () => {
+    expect(extractSignedTx({ txJson: 'a', signedTx: 'b', tx: 'c' })).toBe('a')
+  })
+
+  it('returns an empty string when no signed transaction is present', () => {
+    expect(extractSignedTx({})).toBe('')
+    expect(extractSignedTx({ foo: 'bar' } as { txJson?: string })).toBe('')
+  })
+})
+
+describe('isUserRejection', () => {
+  it('recognises rejected, cancelled, and denied wording', () => {
+    expect(isUserRejection(new Error('User rejected the request'))).toBe(true)
+    expect(isUserRejection(new Error('request cancelled'))).toBe(true)
+    expect(isUserRejection(new Error('connection denied'))).toBe(true)
+  })
+
+  it('recognises error code 4001 on a thrown object', () => {
+    expect(isUserRejection({ code: 4001, message: 'denied' })).toBe(true)
+  })
+
+  it('returns false for unrelated failures', () => {
+    expect(isUserRejection(new Error('invalid_type: Expected string'))).toBe(false)
+    expect(isUserRejection(new Error('boom'))).toBe(false)
+    expect(isUserRejection({ code: -32000 })).toBe(false)
+    expect(isUserRejection(null)).toBe(false)
+    expect(isUserRejection('plain string')).toBe(false)
   })
 })

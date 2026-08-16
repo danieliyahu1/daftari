@@ -13,6 +13,10 @@ describe('sompiToKas', () => {
     expect(sompiToKas('1')).toBe('0.00000001')
   })
 
+  it('keeps zeros inside the fraction', () => {
+    expect(sompiToKas('100000001')).toBe('1.00000001')
+  })
+
   it('handles zero', () => {
     expect(sompiToKas('0')).toBe('0')
   })
@@ -29,10 +33,24 @@ describe('kasToSompi', () => {
     expect(kasToSompi('0.00000001')).toBe('1')
   })
 
+  it('trims surrounding whitespace in the amount', () => {
+    expect(kasToSompi('  1.5  ')).toBe('150000000')
+  })
+
   it('rejects invalid amounts', () => {
     expect(() => kasToSompi('abc')).toThrow()
     expect(() => kasToSompi('-1')).toThrow()
     expect(() => kasToSompi('1.123456789')).toThrow()
+    expect(() => kasToSompi('')).toThrow()
+    expect(() => kasToSompi('   ')).toThrow()
+  })
+})
+
+describe('sompiToKas and kasToSompi round-trip', () => {
+  it('recovers the original KAS value', () => {
+    expect(sompiToKas(kasToSompi('12.34'))).toBe('12.34')
+    expect(sompiToKas(kasToSompi('0.00000001'))).toBe('0.00000001')
+    expect(sompiToKas(kasToSompi('150'))).toBe('150')
   })
 })
 
