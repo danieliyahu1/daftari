@@ -160,34 +160,34 @@ function prepareInput(overrides: {
 }
 
 describe("handlePreparePayment", () => {
-  it("returns 400 bad_request when user_address is missing", async () => {
+  it("returns 400 when user_address is missing", async () => {
     const { chain } = makeChain();
     const result = await handlePreparePayment(
       prepareInput({ user_address: undefined }),
       chain,
     );
     expect(result.status).toBe(400);
-    expect(result.body).toEqual({ error: { kind: "bad_request", message: expect.any(String) } });
+    expect(result.body).toEqual({ error: { kind: "invalid", message: expect.any(String) } });
   });
 
-  it("returns 400 bad_request when chama_address is missing", async () => {
+  it("returns 400 when chama_address is missing", async () => {
     const { chain } = makeChain();
     const result = await handlePreparePayment(
       prepareInput({ chama_address: undefined }),
       chain,
     );
     expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ error: { kind: "bad_request" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
-  it("returns 400 bad_request when amount_sompi is missing", async () => {
+  it("returns 400 when amount_sompi is missing", async () => {
     const { chain } = makeChain();
     const result = await handlePreparePayment(
       prepareInput({ amount_sompi: undefined }),
       chain,
     );
     expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ error: { kind: "bad_request" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
   it("returns 422 validation for a user address on another network", async () => {
@@ -197,7 +197,7 @@ describe("handlePreparePayment", () => {
       chain,
     );
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
     expect(getUtxos).not.toHaveBeenCalled();
   });
 
@@ -208,7 +208,7 @@ describe("handlePreparePayment", () => {
       chain,
     );
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
     expect(getUtxos).not.toHaveBeenCalled();
   });
 
@@ -220,7 +220,7 @@ describe("handlePreparePayment", () => {
         chain,
       );
       expect(result.status).toBe(422);
-      expect(result.body).toMatchObject({ error: { kind: "validation" } });
+      expect(result.body).toMatchObject({ error: { kind: "invalid" } });
     }
     expect(getUtxos).not.toHaveBeenCalled();
   });
@@ -262,19 +262,19 @@ describe("handlePreparePayment", () => {
     expect(Object.keys(result.body as object)).toEqual(["signing_template"]);
   });
 
-  it("returns 422 validation when the user has no spendable UTXOs", async () => {
+  it("returns 422 policy when the user has no spendable UTXOs", async () => {
     const { chain } = makeChain();
     const result = await handlePreparePayment(prepareInput(), chain);
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "policy" } });
   });
 
-  it("returns 422 validation when the UTXOs cannot cover amount plus fee", async () => {
+  it("returns 422 policy when the UTXOs cannot cover amount plus fee", async () => {
     const { chain, getUtxos } = makeChain();
     getUtxos.mockResolvedValue([utxo("a", 0, "1000")]);
     const result = await handlePreparePayment(prepareInput(), chain);
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "policy" } });
   });
 
   it("maps an upstream rejection on the UTXO fetch", async () => {
@@ -285,24 +285,24 @@ describe("handlePreparePayment", () => {
     const result = await handlePreparePayment(prepareInput(), chain);
     expect(result.status).toBe(503);
     expect(result.body).toEqual({
-      error: { kind: "unavailable", message: "busy" },
+      error: { kind: "upstream", source: "unavailable", message: "busy" },
     });
   });
 });
 
 describe("handleFinalizePayment", () => {
-  it("returns 400 bad_request when signed is missing", async () => {
+  it("returns 400 invalid when signed is missing", async () => {
     const { chain } = makeChain();
     const result = await handleFinalizePayment({ signed: undefined }, chain);
     expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ error: { kind: "bad_request" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
-  it("returns 422 validation for invalid JSON", async () => {
+  it("returns 422 invalid for invalid JSON", async () => {
     const { chain, broadcastTransaction } = makeChain();
     const result = await handleFinalizePayment({ signed: "{nope" }, chain);
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
     expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
@@ -341,7 +341,7 @@ describe("handleFinalizePayment", () => {
     expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
-  it("returns 422 validation for duplicate input outpoints", async () => {
+  it("returns 422 invalid for duplicate input outpoints", async () => {
     const { chain, broadcastTransaction } = makeChain();
     const dup = signedTx({
       inputs: [
@@ -351,7 +351,7 @@ describe("handleFinalizePayment", () => {
     });
     const result = await handleFinalizePayment({ signed: dup }, chain);
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
     expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
@@ -416,11 +416,11 @@ describe("handleFinalizePayment", () => {
     );
 
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
     expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
-  it("returns 422 validation when inputs cannot cover outputs and fee", async () => {
+  it("returns 422 policy when inputs cannot cover outputs and fee", async () => {
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockResolvedValue(txModel([{ index: 0, amount: 1000 }]));
 
@@ -430,7 +430,7 @@ describe("handleFinalizePayment", () => {
     );
 
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "policy" } });
     expect(broadcastTransaction).not.toHaveBeenCalled();
   });
 
@@ -447,11 +447,15 @@ describe("handleFinalizePayment", () => {
 
     expect(result.status).toBe(409);
     expect(result.body).toEqual({
-      error: { kind: "conflict", message: "Transaction spends the same outpoint" },
+      error: {
+        kind: "upstream",
+        source: "conflict",
+        message: "Transaction spends the same outpoint",
+      },
     });
   });
 
-  it("maps an invalid submission as bad_request", async () => {
+  it("maps an invalid submission as an upstream bad_request", async () => {
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockResolvedValue(txModel([{ index: 0, amount: 1000000000 }]));
     broadcastTransaction.mockRejectedValue(
@@ -464,11 +468,11 @@ describe("handleFinalizePayment", () => {
 
     expect(result.status).toBe(400);
     expect(result.body).toEqual({
-      error: { kind: "bad_request", message: "Transaction is invalid" },
+      error: { kind: "upstream", source: "bad_request", message: "Transaction is invalid" },
     });
   });
 
-  it("maps an upstream unavailability as unavailable", async () => {
+  it("maps a network failure as a network error", async () => {
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockResolvedValue(txModel([{ index: 0, amount: 1000000000 }]));
     broadcastTransaction.mockRejectedValue(
@@ -478,6 +482,6 @@ describe("handleFinalizePayment", () => {
     const result = await handleFinalizePayment({ signed: signedTx() }, chain);
 
     expect(result.status).toBe(503);
-    expect(result.body).toMatchObject({ error: { kind: "unavailable" } });
+    expect(result.body).toMatchObject({ error: { kind: "network" } });
   });
 });

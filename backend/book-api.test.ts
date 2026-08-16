@@ -335,14 +335,14 @@ describe("handleGetBook", () => {
     const { chain } = makeChain();
     const result = await handleGetBook(undefined, {}, chain);
     expect(result.status).toBe(400);
-    expect(result.body).toMatchObject({ error: { kind: "bad_request" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
-  it("returns 422 validation for an invalid code", async () => {
+  it("returns 422 invalid for an invalid code", async () => {
     const { chain } = makeChain();
     const result = await handleGetBook(INVALID_CODE, {}, chain);
     expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "validation" } });
+    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
   it("returns 422 validation for a non-positive limit or negative offset", async () => {
@@ -361,7 +361,7 @@ describe("handleGetBook", () => {
     const result = await handleGetBook(GROUP, {}, chain);
     expect(result.status).toBe(503);
     expect(result.body).toEqual({
-      error: { kind: "unavailable", message: "busy" },
+      error: { kind: "upstream", source: "unavailable", message: "busy" },
     });
   });
 });

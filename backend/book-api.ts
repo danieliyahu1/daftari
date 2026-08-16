@@ -1,29 +1,11 @@
 import { getNetworkConfig, proofUrl } from "../shared/network";
 import type { NetworkConfig } from "../shared/types";
 import type { Book, BookDirection, BookRow } from "../shared/types";
+import { AppError, requiredStr, toRouteResult, validInt, validUint } from "./errors";
+import type { RouteResult } from "./errors";
+import { KaspaClient } from "./kaspa-client";
 import { isValidMembershipCode } from "./kaspa-address";
-import { ChainError, KaspaClient, UpstreamError } from "./kaspa-client";
-import type { UpstreamKind } from "./kaspa-client";
 import type { BalanceResponse, TxInput, TxModel, TxOutput } from "./kaspa-api-types";
-
-export interface RouteResult {
-  status: number;
-  body: unknown;
-}
-
-export type BookErrorKind = Exclude<UpstreamKind, "not_found" | "unknown">;
-
-export class BookError extends Error {
-  readonly status: number;
-  readonly kind: BookErrorKind;
-
-  constructor(status: number, kind: BookErrorKind, message: string) {
-    super(message);
-    this.name = "BookError";
-    this.status = status;
-    this.kind = kind;
-  }
-}
 
 export interface BookChain {
   getBalance(address: string): Promise<BalanceResponse>;
@@ -40,45 +22,20 @@ export interface GetBookInput {
 
 const DEFAULT_PAGE_SIZE = 50;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function requireCode(raw: unknown): string {
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new BookError(400, "bad_request", "code is required");
-  }
-  const code = raw.trim();
+  const code = requiredStr(raw, "code");
   if (!isValidMembershipCode(code)) {
-    throw new BookError(
-      422,
-      "validation",
-      "code is not a well-formed address for this network",
-    );
+    throw new AppError("invalid", "code is not a well-formed address for this network");
   }
   return code;
 }
 
-function parseIntValue(raw: unknown, field: string, minimum: number): number {
-  if (raw === undefined || raw === null) return minimum;
-  if (typeof raw === "number" && Number.isInteger(raw)) return raw;
-  if (typeof raw === "string" && /^\d+$/.test(raw)) return Number(raw);
-  throw new BookError(
-    422,
-    "validation",
-    `${field} must be a non-negative integer`,
-  );
-}
-
 function parsePagination(input: GetBookInput): { limit: number; offset: number } {
-  const offset = parseIntValue(input.offset, "offset", 0);
-  if (offset < 0) {
-    throw new BookError(422, "validation", "offset must be a non-negative integer");
-  }
-  const limit = parseIntValue(input.limit, "limit", DEFAULT_PAGE_SIZE);
+  const limit = validInt(input.limit ?? DEFAULT_PAGE_SIZE, "limit");
   if (limit < 1) {
-    throw new BookError(422, "validation", "limit must be a positive integer");
+    throw new AppError("invalid", "limit must be a positive integer");
   }
+  const offset = validUint(input.offset ?? 0, "offset");
   return { limit, offset };
 }
 
@@ -216,56 +173,6 @@ export function bookRowsForPage(
     );
 }
 
-function upstreamStatus(kind: UpstreamKind): number {
-  switch (kind) {
-    case "bad_request":
-      return 400;
-    case "validation":
-      return 422;
-    case "conflict":
-      return 409;
-    case "rate_limited":
-      return 429;
-    case "unavailable":
-      return 503;
-    case "server":
-      return 502;
-    case "not_found":
-      return 404;
-    case "unknown":
-      return 500;
-  }
-}
-
-function upstreamMessage(err: UpstreamError): string {
-  if (isRecord(err.body)) {
-    if (typeof err.body.error === "string" && err.body.error !== "") {
-      return err.body.error;
-    }
-    if (typeof err.body.detail === "string" && err.body.detail !== "") {
-      return err.body.detail;
-    }
-  }
-  return err.message;
-}
-
-function toErrorResult(err: unknown): RouteResult {
-  if (err instanceof BookError) {
-    return { status: err.status, body: { error: { kind: err.kind, message: err.message } } };
-  }
-  if (err instanceof UpstreamError) {
-    return {
-      status: upstreamStatus(err.kind),
-      body: { error: { kind: err.kind, message: upstreamMessage(err) } },
-    };
-  }
-  if (err instanceof ChainError) {
-    return { status: 503, body: { error: { kind: "unavailable", message: err.message } } };
-  }
-  const message = err instanceof Error ? err.message : "Unexpected book error";
-  return { status: 500, body: { error: { kind: "server", message } } };
-}
-
 export async function handleGetBook(
   code: unknown,
   input: GetBookInput = {},
@@ -285,6 +192,6 @@ export async function handleGetBook(
     };
     return { status: 200, body: book };
   } catch (err) {
-    return toErrorResult(err);
+    return toRouteResult(err);
   }
 }

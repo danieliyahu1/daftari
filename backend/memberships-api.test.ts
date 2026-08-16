@@ -32,7 +32,9 @@ describe("handleListMemberships", () => {
   it("returns 400 when the user param is missing", () => {
     const result = handleListMemberships(store(), undefined);
     expect(result.status).toBe(400);
-    expect(result.body).toEqual({ error: expect.stringMatching(/user/) });
+    expect(result.body).toEqual({
+      error: { kind: "invalid", message: expect.stringMatching(/user/) },
+    });
   });
 
   it("returns 400 when the user param is blank", () => {

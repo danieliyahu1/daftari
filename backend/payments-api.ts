@@ -1,7 +1,8 @@
 import { getNetworkConfig } from "../shared/network";
 import { scriptPublicKeyForAddress } from "./kaspa-address";
-import { ChainError, KaspaClient, UpstreamError } from "./kaspa-client";
-import type { UpstreamKind } from "./kaspa-client";
+import { AppError, requiredStr, toRouteResult } from "./errors";
+import type { RouteResult } from "./errors";
+import { KaspaClient } from "./kaspa-client";
 import type {
   FeeEstimateResponse,
   SubmitTransactionResponse,
@@ -9,26 +10,7 @@ import type {
   TxModel,
   UtxoResponse,
 } from "./kaspa-api-types";
-import { buildTransfer, estimateFee, TxBuilderError } from "./tx-builder";
-
-export interface RouteResult {
-  status: number;
-  body: unknown;
-}
-
-export type PaymentErrorKind = Exclude<UpstreamKind, "not_found" | "unknown">;
-
-export class PaymentError extends Error {
-  readonly status: number;
-  readonly kind: PaymentErrorKind;
-
-  constructor(status: number, kind: PaymentErrorKind, message: string) {
-    super(message);
-    this.name = "PaymentError";
-    this.status = status;
-    this.kind = kind;
-  }
-}
+import { buildTransfer, estimateFee } from "./tx-builder";
 
 export interface PaymentChain {
   getUtxos(address: string): Promise<UtxoResponse[]>;
@@ -73,8 +55,8 @@ export interface SignedTransaction {
   payload: string;
 }
 
-function requireString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() !== "" ? value : null;
+function requireString(value: unknown, field: string): string {
+  return requiredStr(value, field);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -86,29 +68,18 @@ function addressPrefix(): string {
 }
 
 function requireAddress(value: unknown, field: string): string {
-  const raw = requireString(value);
-  if (raw === null) {
-    throw new PaymentError(400, "bad_request", `${field} is required`);
-  }
+  const raw = requireString(value, field);
   if (scriptPublicKeyForAddress(raw, addressPrefix()) === null) {
-    throw new PaymentError(
-      422,
-      "validation",
-      `${field} is not a valid address on this network`,
-    );
+    throw new AppError("invalid", `${field} is not a valid address on this network`);
   }
   return raw;
 }
 
 function requirePositiveSompi(value: unknown): string {
-  const raw = requireString(value);
-  if (raw === null) {
-    throw new PaymentError(400, "bad_request", "amount_sompi is required");
-  }
+  const raw = requireString(value, "amount_sompi");
   if (!/^\d+$/.test(raw) || BigInt(raw) <= 0n) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError(
+      "invalid",
       "amount_sompi must be a positive integer amount of sompi",
     );
   }
@@ -120,34 +91,28 @@ function parseUintString(value: unknown, field: string): string {
   if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
     return value.toString();
   }
-  throw new PaymentError(422, "validation", `${field} must be a non-negative integer`);
+  throw new AppError("invalid", `${field} must be a non-negative integer`);
 }
 
 function parseSignedInput(value: unknown, index: number): SignedTransactionInput {
   if (!isRecord(value)) {
-    throw new PaymentError(422, "validation", `signed.inputs[${index}] must be an object`);
+    throw new AppError("invalid", `signed.inputs[${index}] must be an object`);
   }
   const transactionId = value.transactionId;
   if (typeof transactionId !== "string" || !/^[0-9a-fA-F]{64}$/.test(transactionId)) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       `signed.inputs[${index}].transactionId must be a 64-character hex string`,
     );
   }
   const outputIndex = value.index;
   if (typeof outputIndex !== "number" || !Number.isInteger(outputIndex) || outputIndex < 0) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       `signed.inputs[${index}].index must be a non-negative integer`,
     );
   }
   const sigOpCount = value.sigOpCount;
   if (typeof sigOpCount !== "number" || !Number.isInteger(sigOpCount) || sigOpCount <= 0) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       `signed.inputs[${index}].sigOpCount must be a positive integer`,
     );
   }
@@ -158,9 +123,7 @@ function parseSignedInput(value: unknown, index: number): SignedTransactionInput
     signatureScript.length % 2 !== 0 ||
     !/^[0-9a-fA-F]+$/.test(signatureScript)
   ) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       `signed.inputs[${index}].signatureScript must be non-empty hex`,
     );
   }
@@ -179,13 +142,11 @@ function parseSignedInput(value: unknown, index: number): SignedTransactionInput
 
 function parseSignedOutput(value: unknown, index: number): SignedTransactionOutput {
   if (!isRecord(value)) {
-    throw new PaymentError(422, "validation", `signed.outputs[${index}] must be an object`);
+    throw new AppError("invalid", `signed.outputs[${index}] must be an object`);
   }
   const amount = value.value;
   if (typeof amount !== "string" || !/^\d+$/.test(amount)) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       `signed.outputs[${index}].value must be a numeric string of sompi`,
     );
   }
@@ -196,9 +157,7 @@ function parseSignedOutput(value: unknown, index: number): SignedTransactionOutp
     scriptPublicKey.length % 2 !== 0 ||
     !/^[0-9a-fA-F]+$/.test(scriptPublicKey)
   ) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       `signed.outputs[${index}].scriptPublicKey must be hex with a version prefix`,
     );
   }
@@ -210,24 +169,22 @@ function parseSignedTransaction(raw: string): SignedTransaction {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new PaymentError(422, "validation", "signed is not valid JSON");
+    throw new AppError("invalid", "signed is not valid JSON");
   }
   if (!isRecord(parsed)) {
-    throw new PaymentError(422, "validation", "signed must be a JSON object");
+    throw new AppError("invalid", "signed must be a JSON object");
   }
   const version = parsed.version;
   if (typeof version !== "number" || !Number.isInteger(version) || version < 0) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError("invalid",
       "signed.version must be a non-negative integer",
     );
   }
   if (!Array.isArray(parsed.inputs) || parsed.inputs.length === 0) {
-    throw new PaymentError(422, "validation", "signed must have at least one input");
+    throw new AppError("invalid", "signed must have at least one input");
   }
   if (!Array.isArray(parsed.outputs) || parsed.outputs.length === 0) {
-    throw new PaymentError(422, "validation", "signed must have at least one output");
+    throw new AppError("invalid", "signed must have at least one output");
   }
 
   const inputs = parsed.inputs.map((input, index) => parseSignedInput(input, index));
@@ -236,7 +193,7 @@ function parseSignedTransaction(raw: string): SignedTransaction {
   for (const input of inputs) {
     const key = `${input.transactionId}:${input.index}`;
     if (outpoints.has(key)) {
-      throw new PaymentError(422, "validation", `Duplicate input outpoint ${key}`);
+      throw new AppError("invalid", `Duplicate input outpoint ${key}`);
     }
     outpoints.add(key);
   }
@@ -258,7 +215,7 @@ async function feeRate(chain: PaymentChain): Promise<number> {
   const estimate = await chain.getFeeEstimate();
   const rate = estimate.normalBuckets[0]?.feerate ?? estimate.priorityBucket.feerate;
   if (!Number.isFinite(rate) || rate <= 0) {
-    throw new PaymentError(502, "server", "Upstream returned no usable fee estimate");
+    throw new AppError("upstream", "Upstream returned no usable fee estimate", 502);
   }
   return rate;
 }
@@ -272,9 +229,8 @@ async function fetchAuthoritativeAmounts(
     const tx = await chain.getTransaction(input.transactionId);
     const output = tx.outputs.find((candidate) => candidate.index === input.index);
     if (output === undefined) {
-      throw new PaymentError(
-        422,
-        "validation",
+      throw new AppError(
+        "invalid",
         `Input outpoint ${input.transactionId}:${input.index} does not exist on the chain`,
       );
     }
@@ -298,9 +254,8 @@ function verifyAffordability(
   );
   const requiredFee = estimateFee(signed.inputs.length, scriptLengths, feerate);
   if (inputsTotal < outputsTotal + requiredFee) {
-    throw new PaymentError(
-      422,
-      "validation",
+    throw new AppError(
+      "policy",
       `Inputs ${inputsTotal} sompi cannot cover outputs ${outputsTotal} sompi plus required fee ${requiredFee} sompi`,
     );
   }
@@ -312,11 +267,7 @@ function splitScriptPublicKey(hex: string): {
 } {
   const version = parseInt(hex.slice(0, 4), 16);
   if (!Number.isInteger(version) || version < 0) {
-    throw new PaymentError(
-      422,
-      "validation",
-      "output scriptPublicKey has an invalid version prefix",
-    );
+    throw new AppError("invalid", "output scriptPublicKey has an invalid version prefix");
   }
   return { version, scriptPublicKey: hex.slice(4) };
 }
@@ -338,59 +289,6 @@ function toSubmitTxModel(signed: SignedTransaction): SubmitTxModel {
     ...(Number.isFinite(lockTime) && lockTime >= 0 ? { lockTime } : {}),
     ...(signed.subnetworkId !== "" ? { subnetworkId: signed.subnetworkId } : {}),
   };
-}
-
-function upstreamStatus(kind: UpstreamKind): number {
-  switch (kind) {
-    case "bad_request":
-      return 400;
-    case "validation":
-      return 422;
-    case "conflict":
-      return 409;
-    case "rate_limited":
-      return 429;
-    case "unavailable":
-      return 503;
-    case "server":
-      return 502;
-    case "not_found":
-      return 404;
-    case "unknown":
-      return 500;
-  }
-}
-
-function upstreamMessage(err: UpstreamError): string {
-  if (isRecord(err.body)) {
-    if (typeof err.body.error === "string" && err.body.error !== "") {
-      return err.body.error;
-    }
-    if (typeof err.body.detail === "string" && err.body.detail !== "") {
-      return err.body.detail;
-    }
-  }
-  return err.message;
-}
-
-function toErrorResult(err: unknown): RouteResult {
-  if (err instanceof PaymentError) {
-    return { status: err.status, body: { error: { kind: err.kind, message: err.message } } };
-  }
-  if (err instanceof TxBuilderError) {
-    return { status: 422, body: { error: { kind: "validation", message: err.message } } };
-  }
-  if (err instanceof UpstreamError) {
-    return {
-      status: upstreamStatus(err.kind),
-      body: { error: { kind: err.kind, message: upstreamMessage(err) } },
-    };
-  }
-  if (err instanceof ChainError) {
-    return { status: 503, body: { error: { kind: "unavailable", message: err.message } } };
-  }
-  const message = err instanceof Error ? err.message : "Unexpected payment error";
-  return { status: 500, body: { error: { kind: "server", message } } };
 }
 
 export async function handlePreparePayment(
@@ -415,7 +313,7 @@ export async function handlePreparePayment(
       body: { signing_template: JSON.stringify(built.signing_template) },
     };
   } catch (err) {
-    return toErrorResult(err);
+    return toRouteResult(err);
   }
 }
 
@@ -424,11 +322,7 @@ export async function handleFinalizePayment(
   chain: PaymentChain = new KaspaClient(),
 ): Promise<RouteResult> {
   try {
-    const raw = requireString(input.signed);
-    if (raw === null) {
-      throw new PaymentError(400, "bad_request", "signed is required");
-    }
-    const signed = parseSignedTransaction(raw);
+    const signed = parseSignedTransaction(requireString(input.signed, "signed"));
     const inputAmounts = await fetchAuthoritativeAmounts(chain, signed.inputs);
     const feerate = await feeRate(chain);
     verifyAffordability(signed, inputAmounts, feerate);
@@ -436,12 +330,8 @@ export async function handleFinalizePayment(
     if (response.transactionId !== undefined && response.transactionId !== "") {
       return { status: 200, body: { txid: response.transactionId } };
     }
-    throw new PaymentError(
-      409,
-      "conflict",
-      response.error ?? "Transaction was rejected by the node",
-    );
+    throw new AppError("conflict", response.error ?? "Transaction was rejected by the node");
   } catch (err) {
-    return toErrorResult(err);
+    return toRouteResult(err);
   }
 }
