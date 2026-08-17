@@ -5,10 +5,11 @@ import { ToastProvider } from '../../src/components/Toaster'
 import { HomePage } from '../../src/pages/HomePage'
 import { RegistryProvider } from '../../src/wallet/registry'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
-import { CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
+import { bookStub, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
 const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
-const NO_MEMBERS_COPY = 'Your people appear here as they join.'
+const EMPTY_BOOK_COPY = 'No payments yet. The book starts with the first payment in.'
+const GROUP_BOOK = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 
 function renderHome(): void {
   render(
@@ -78,35 +79,51 @@ describe('HomePage', () => {
     expect(screen.getByText('Plot')).toBeInTheDocument()
   })
 
-  it('shows the no-members copy for a group with no members yet', async () => {
+  it('shows the invite button and an empty fund feed for a group with no payments yet', async () => {
+    installConnectedKastle(CHAMA_ADDRESS)
     stubApi({
       'GET /api/wallets/resolve': { body: { wallets: [groupWallet()] } },
       'GET /api/memberships': { body: { identity: groupWallet(), members: [], chamas: [] } },
+      [GROUP_BOOK]: { body: bookStub() },
     })
     renderHome()
-    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
-    expect(screen.getByText(NO_MEMBERS_COPY)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    const invite = screen.getByTestId('invite-button')
+    expect(invite).toHaveTextContent('Invite members')
+    expect(screen.queryByText('Invite someone to contribute')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('book-group')).not.toBeInTheDocument()
+    expect(screen.getByText(EMPTY_BOOK_COPY)).toBeInTheDocument()
   })
 
-  it('shows the roster for a group, names for registered members and addresses otherwise', async () => {
+  it('shows the fund feed with member names for a group with a payment', async () => {
+    installConnectedKastle(CHAMA_ADDRESS)
     stubApi({
       'GET /api/wallets/resolve': { body: { wallets: [groupWallet()] } },
-      'GET /api/memberships': {
-        body: {
-          identity: groupWallet(),
-          members: [
-            { address: USER_ADDRESS, name: 'Amina', kind: 'user' },
-            { address: CHAMA_ADDRESS },
+      'GET /api/memberships': { body: { identity: groupWallet(), members: [], chamas: [] } },
+      [GROUP_BOOK]: {
+        body: bookStub({
+          balance_sompi: '100000000',
+          rows: [
+            {
+              direction: 'in',
+              amount_sompi: '100000000',
+              other_address: USER_ADDRESS,
+              other_name: 'Amina',
+              other_kind: 'user',
+              date: 1_700_000_000_000,
+              txid: 'ab'.repeat(32),
+              proof_url: `https://explorer-tn10.kaspa.org/txs/${'ab'.repeat(32)}`,
+              other_is_member: true,
+            },
           ],
-          chamas: [],
-        },
+        }),
       },
     })
     renderHome()
-    await waitFor(() => expect(screen.getAllByTestId('roster-member')).toHaveLength(2))
-    expect(screen.getByText('Your people')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
     expect(screen.getByText('Amina')).toBeInTheDocument()
-    expect(screen.getByText('kaspatest:...rle5a7')).toBeInTheDocument()
+    expect(screen.getByTestId('invite-button')).toBeInTheDocument()
   })
 
   it('shows the connected user identifier at the top', async () => {

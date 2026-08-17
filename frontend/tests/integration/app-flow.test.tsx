@@ -122,6 +122,8 @@ function setupBackend(options: { named?: boolean } = {}): void {
         direction: 'in',
         amount_sompi: '1000000000',
         other_address: USER_ADDRESS,
+        other_name: 'Amina',
+        other_kind: 'user',
         date: 1_700_000_000_000,
         txid: TXID,
         proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
@@ -166,13 +168,12 @@ describe('whole demo flow — integration', () => {
     installConnectedKastle(CHAMA_ADDRESS)
     await userEvent.click(screen.getByTestId('connect-button'))
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
-    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
-    expect(
-      screen.getByText('Your people appear here as they join.'),
-    ).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    expect(screen.getByTestId('invite-button')).toBeInTheDocument()
 
-    // The group opens its empty book and creates an invitation link
+    // The group opens its book and creates an invitation link
     navigateTo(`/groups/${encodeURIComponent(CHAMA_ADDRESS)}`)
+    await waitFor(() => expect(screen.getByTestId('book')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
     await userEvent.click(screen.getByTestId('invite-button'))
     const inviteLink = (screen.getByTestId('invite-link') as HTMLInputElement).value
@@ -210,9 +211,10 @@ describe('whole demo flow — integration', () => {
     await userEvent.click(screen.getByTestId('add-member'))
     await waitFor(() => expect(screen.queryByTestId('add-member')).not.toBeInTheDocument())
 
-    // Back on the group home, Amina is in the roster
+    // Back on the group home, the fund feed shows Amina's contribution
     navigateTo('/')
-    await waitFor(() => expect(screen.getByTestId('roster-member')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('home')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
     expect(screen.getByText('Amina')).toBeInTheDocument()
 
     // Amina's home now shows Plot, and she can open the book as a member

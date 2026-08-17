@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { BookGroup, Home, RosterMember } from '../../../shared/types'
+import type { BookGroup, Home } from '../../../shared/types'
 import { apiClient, ApiClientError } from '../api/client'
 import { EmptyState } from '../components/EmptyState'
+import { GroupActivity } from '../components/GroupActivity'
 import { GroupCard } from '../components/GroupCard'
 import { shortAddress } from '../format'
 import { logger } from '../logger'
@@ -9,11 +10,6 @@ import { useRegistry } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletProvider'
 
 const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
-const NO_MEMBERS_COPY = 'Your people appear here as they join.'
-
-function memberLabel(member: RosterMember): string {
-  return member.name ?? shortAddress(member.address, 10, 6)
-}
 
 export function HomePage(): JSX.Element {
   const wallet = useWallet()
@@ -89,42 +85,11 @@ export function HomePage(): JSX.Element {
           </button>
         </div>
       ) : isGroup ? (
-        <GroupRoster members={home?.members ?? []} />
+        <GroupActivity groupCode={wallet.address} inviteFirst />
       ) : (
         <PersonChamas chamas={home?.chamas ?? []} />
       )}
     </div>
-  )
-}
-
-function GroupRoster({ members }: { members: RosterMember[] }): JSX.Element {
-  if (members.length === 0) {
-    return (
-      <section className="empty" data-testid="home-empty">
-        <EmptyState title={NO_MEMBERS_COPY}>
-          <p className="empty-sub">People appear here once they join your chama.</p>
-        </EmptyState>
-      </section>
-    )
-  }
-  return (
-    <section>
-      <h2 className="section-title">Your people</h2>
-      <ul className="roster" data-testid="roster">
-        {members.map((member) => (
-          <li className="roster-member" key={member.address} data-testid="roster-member">
-            <span className="roster-member-name" title={member.address}>
-              {memberLabel(member)}
-            </span>
-            {member.kind ? (
-              <span className="kind-mark" data-testid="roster-member-kind">
-                {member.kind === 'group' ? 'group' : 'person'}
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
   )
 }
 
