@@ -131,6 +131,36 @@ function setupBackend(options: { named?: boolean } = {}): void {
       balance += 1_000_000_000n
       return json(200, { status: 'recorded', txid: TXID })
     }
+    if (method === 'POST' && path === '/api/withdrawals/prepare') {
+      return json(200, { signing_template: '{"version":0}' })
+    }
+    if (method === 'POST' && path === '/api/withdrawals/finalize') {
+      const fund = String(body.fund_address ?? '')
+      const recipient = String(body.recipient_address ?? '')
+      const group = wallets.get(fund)
+      if (!group || group.kind !== 'group') {
+        return json(422, { error: { kind: 'invalid', message: "This isn't a registered group." } })
+      }
+      if (!(memberships.get(fund)?.has(recipient) ?? false)) {
+        return json(422, {
+          error: { kind: 'policy', message: 'Only members can receive money from this fund.' },
+        })
+      }
+      const recipientWallet = wallets.get(recipient)
+      const amount = BigInt(String(body.amount_sompi ?? '0'))
+      rows.unshift({
+        direction: 'out',
+        amount_sompi: amount.toString(),
+        other_address: recipient,
+        other_name: recipientWallet?.name,
+        other_kind: recipientWallet?.kind,
+        date: 1_700_000_000_000,
+        txid: 'ee'.repeat(32),
+        proof_url: `https://explorer-tn10.kaspa.org/txs/${'ee'.repeat(32)}`,
+      })
+      balance -= amount
+      return json(200, { status: 'recorded', txid: 'ee'.repeat(32) })
+    }
     return json(404, { error: { kind: 'invalid', message: 'not found' } })
   })
 }
@@ -217,6 +247,21 @@ describe('whole demo flow — integration', () => {
     await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
     expect(screen.getByText('Amina')).toBeInTheDocument()
 
+    // The fund sends to a member: pick Amina, send 2 KAS, the book shows the withdrawal
+    await waitFor(() => expect(screen.getByTestId('send-button')).toBeEnabled())
+    await userEvent.click(screen.getByTestId('send-button'))
+    const sendDialog = screen.getByTestId('send-dialog-panel')
+    await userEvent.click(within(sendDialog).getByTestId('send-member-option'))
+    await userEvent.type(within(sendDialog).getByTestId('send-amount-input'), '2')
+    await userEvent.click(within(sendDialog).getByTestId('send-next'))
+    await userEvent.click(within(sendDialog).getByTestId('send-approve'))
+    await waitFor(() =>
+      expect(within(sendDialog).getByTestId('send-sent')).toBeInTheDocument(),
+    )
+    await userEvent.click(within(sendDialog).getByTestId('send-back-to-book'))
+    await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(2))
+    expect(screen.getByTestId('book-balance')).toHaveTextContent('8 KAS')
+
     // Amina's home now shows Plot, and she can open the book as a member
     await userEvent.click(screen.getByTestId('disconnect-button'))
     await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
@@ -226,8 +271,10 @@ describe('whole demo flow — integration', () => {
     await waitFor(() => expect(screen.getByTestId('group-card')).toBeInTheDocument())
     expect(screen.getByText('Plot')).toBeInTheDocument()
     await userEvent.click(screen.getByTestId('group-card').querySelector('a')!)
-    await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
-    expect(screen.getByTestId('book-amount')).toHaveTextContent('+10 KAS')
+    await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(2))
+    const amounts = screen.getAllByTestId('book-amount').map((el) => el.textContent)
+    expect(amounts).toContain('+10 KAS')
+    expect(amounts).toContain('−2 KAS')
     expect(screen.queryByTestId('add-member')).not.toBeInTheDocument()
   })
 

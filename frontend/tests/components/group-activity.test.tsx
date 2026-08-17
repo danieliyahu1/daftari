@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GroupActivity } from '../../src/components/GroupActivity'
+import { ToastProvider } from '../../src/components/Toaster'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
 import {
   bookStub,
@@ -30,12 +31,14 @@ function makeRow(overrides: Record<string, unknown> = {}) {
 
 function renderActivity(props: { groupCode?: string; inviteFirst?: boolean } = {}): void {
   render(
-    <WalletProvider>
-      <GroupActivity
-        groupCode={props.groupCode ?? CHAMA_ADDRESS}
-        inviteFirst={props.inviteFirst}
-      />
-    </WalletProvider>,
+    <ToastProvider>
+      <WalletProvider>
+        <GroupActivity
+          groupCode={props.groupCode ?? CHAMA_ADDRESS}
+          inviteFirst={props.inviteFirst}
+        />
+      </WalletProvider>
+    </ToastProvider>,
   )
 }
 
@@ -85,6 +88,41 @@ describe('GroupActivity', () => {
       expect(
         screen.getByText('No payments yet. The book starts with the first payment in.'),
       ).toBeInTheDocument()
+    })
+
+    it('disables Send to a member with a hint until the fund has members', async () => {
+      stubApi({
+        [BOOK_PATH]: { body: bookStub() },
+        'GET /api/memberships': {
+          body: { identity: { address: CHAMA_ADDRESS, name: 'Plot', kind: 'group', created_at: 0 }, members: [], chamas: [] },
+        },
+      })
+      renderActivity({ inviteFirst: true })
+      await waitFor(() => expect(screen.getByTestId('send-button')).toBeInTheDocument())
+
+      const send = screen.getByTestId('send-button')
+      expect(send).toBeDisabled()
+      expect(send).toHaveTextContent('Send to a member')
+      expect(screen.getByTestId('send-hint')).toBeInTheDocument()
+    })
+
+    it('opens the send dialog listing the fund members', async () => {
+      stubApi({
+        [BOOK_PATH]: { body: bookStub() },
+        'GET /api/memberships': {
+          body: {
+            identity: { address: CHAMA_ADDRESS, name: 'Plot', kind: 'group', created_at: 0 },
+            members: [{ address: USER_ADDRESS, name: 'Amina', kind: 'user' }],
+            chamas: [],
+          },
+        },
+      })
+      renderActivity({ inviteFirst: true })
+      await waitFor(() => expect(screen.getByTestId('send-button')).toBeEnabled())
+      await userEvent.click(screen.getByTestId('send-button'))
+
+      expect(screen.getByTestId('send-dialog-panel')).toBeInTheDocument()
+      expect(screen.getByTestId('send-member-option')).toHaveTextContent('Amina')
     })
 
     it('recovers from a failed load with the retry button', async () => {

@@ -570,7 +570,28 @@ body {
 }
 
 .activity-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-bottom: 1.5rem;
+}
+
+.activity-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.send-member-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.send-warning {
+  color: var(--color-warning);
 }
 
 .overlay {

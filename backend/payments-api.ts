@@ -40,7 +40,7 @@ export interface ConfirmPolicy {
 // Six checks with doubling backoff (1s, 2s, 4s, 8s, 8s) ≈ 23s of wall time.
 // Testnet blocks in ~1s, so acceptance normally lands on the first or second
 // check; the budget only matters for a tx stuck near the DAG tip.
-const DEFAULT_CONFIRM_POLICY: ConfirmPolicy = {
+export const DEFAULT_CONFIRM_POLICY: ConfirmPolicy = {
   maxAttempts: 6,
   baseDelayMs: 1_000,
   maxDelayMs: 8_000,
@@ -114,7 +114,7 @@ function addressPrefix(): string {
   return getNetworkConfig().addressPrefix.replace(/:$/, "");
 }
 
-function requireAddress(value: unknown, field: string): string {
+export function requireAddress(value: unknown, field: string): string {
   const raw = requireString(value, field);
   if (scriptPublicKeyForAddress(raw, addressPrefix()) === null) {
     throw new AppError("invalid", `${field} is not a valid address on this network`);
@@ -122,7 +122,7 @@ function requireAddress(value: unknown, field: string): string {
   return raw;
 }
 
-function requirePositiveSompi(value: unknown): string {
+export function requirePositiveSompi(value: unknown): string {
   const raw = requireString(value, "amount_sompi");
   if (!/^\d+$/.test(raw) || BigInt(raw) <= 0n) {
     throw new AppError(
@@ -211,7 +211,7 @@ function parseSignedOutput(value: unknown, index: number): SignedTransactionOutp
   return { value: amount, scriptPublicKey: scriptPublicKey.toLowerCase() };
 }
 
-function parseSignedTransaction(raw: string): SignedTransaction {
+export function parseSignedTransaction(raw: string): SignedTransaction {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -258,7 +258,7 @@ function parseSignedTransaction(raw: string): SignedTransaction {
   };
 }
 
-async function feeRate(chain: PaymentChain): Promise<number> {
+export async function feeRate(chain: PaymentChain): Promise<number> {
   const estimate = await chain.getFeeEstimate();
   const rate = estimate.normalBuckets[0]?.feerate ?? estimate.priorityBucket.feerate;
   if (!Number.isFinite(rate) || rate <= 0) {
@@ -267,7 +267,7 @@ async function feeRate(chain: PaymentChain): Promise<number> {
   return rate;
 }
 
-async function fetchAuthoritativeAmounts(
+export async function fetchAuthoritativeAmounts(
   chain: PaymentChain,
   inputs: SignedTransactionInput[],
 ): Promise<bigint[]> {
@@ -286,7 +286,7 @@ async function fetchAuthoritativeAmounts(
   return amounts;
 }
 
-function verifyAffordability(
+export function verifyAffordability(
   signed: SignedTransaction,
   inputAmounts: readonly bigint[],
   feerate: number,
@@ -319,7 +319,7 @@ function splitScriptPublicKey(hex: string): {
   return { version, scriptPublicKey: hex.slice(4) };
 }
 
-function toSubmitTxModel(signed: SignedTransaction): SubmitTxModel {
+export function toSubmitTxModel(signed: SignedTransaction): SubmitTxModel {
   const lockTime = Number(signed.lockTime);
   return {
     version: signed.version,

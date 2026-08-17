@@ -19,6 +19,10 @@ import { handleFinalizePayment, handlePreparePayment } from "./payments-api";
 import type { PaymentChain, ConfirmPolicy } from "./payments-api";
 import { requestContext } from "./request-context";
 import { handleRegisterWallet, handleResolveWallets } from "./wallets-api";
+import {
+  handleFinalizeWithdrawal,
+  handlePrepareWithdrawal,
+} from "./withdrawals-api";
 import type { WalletStore } from "./wallet-store";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -110,6 +114,27 @@ export function createApp({ store, walletStore, bookChain, paymentChain, confirm
 
   app.post("/api/payments/finalize", async (req: Request, res: Response) => {
     const result = await handleFinalizePayment(req.body ?? {}, paymentChain, confirmPolicy);
+    send(res, result);
+  });
+
+  app.post("/api/withdrawals/prepare", async (req: Request, res: Response) => {
+    const result = await handlePrepareWithdrawal(
+      store,
+      walletStore,
+      req.body ?? {},
+      paymentChain,
+    );
+    send(res, result);
+  });
+
+  app.post("/api/withdrawals/finalize", async (req: Request, res: Response) => {
+    const result = await handleFinalizeWithdrawal(
+      store,
+      walletStore,
+      req.body ?? {},
+      paymentChain,
+      confirmPolicy,
+    );
     send(res, result);
   });
 

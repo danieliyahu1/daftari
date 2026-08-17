@@ -127,6 +127,25 @@ export function createApiClient(baseUrl?: string) {
     }> {
       return request('POST', '/payments/finalize', data)
     },
+    prepareWithdrawal(data: {
+      fund_address: string
+      recipient_address: string
+      amount_sompi: string
+    }): Promise<{ signing_template: string }> {
+      return request('POST', '/withdrawals/prepare', data)
+    },
+    finalizeWithdrawal(data: {
+      fund_address: string
+      recipient_address: string
+      amount_sompi: string
+      signed: string
+    }): Promise<{
+      status: 'recorded' | 'pending'
+      txid: string
+      explorer_url?: string
+    }> {
+      return request('POST', '/withdrawals/finalize', data)
+    },
   }
 }
 

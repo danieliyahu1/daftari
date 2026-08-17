@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Book } from '../../../shared/types'
+import type { Book, RosterMember } from '../../../shared/types'
 import { apiClient, ApiClientError } from '../api/client'
 import { PAGE_SIZE } from '../constants'
 import { sompiToKas } from '../format'
@@ -9,6 +9,7 @@ import { BookRow } from './BookRow'
 import { EmptyState } from './EmptyState'
 import { InviteDialog } from './InviteDialog'
 import { PayDialog } from './PayDialog'
+import { SendDialog } from './SendDialog'
 
 const EMPTY_BOOK_COPY = 'No payments yet. The book starts with the first payment in.'
 
@@ -26,7 +27,25 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
   const [hasMore, setHasMore] = useState(false)
   const [paying, setPaying] = useState(false)
   const [inviting, setInviting] = useState(false)
+  const [sending, setSending] = useState(false)
   const [adding, setAdding] = useState<string | null>(null)
+  const [members, setMembers] = useState<RosterMember[]>([])
+
+  const refreshMembers = useCallback(async () => {
+    if (!wallet.address) return
+    try {
+      const home = await apiClient.getHome(wallet.address)
+      setMembers(home.members)
+    } catch (err) {
+      logger.warn('failed to load fund members', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }, [wallet.address])
+
+  useEffect(() => {
+    if (inviteFirst && wallet.address !== null) void refreshMembers()
+  }, [inviteFirst, wallet.address, refreshMembers])
 
   const load = useCallback(async () => {
     if (!groupCode) return
@@ -87,6 +106,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
         })
         logger.info('member added to chama', { chamaAddress: groupCode, memberAddress })
         await load()
+        if (inviteFirst) void refreshMembers()
       } catch (err) {
         const message = err instanceof ApiClientError ? err.message : 'Something went wrong.'
         logger.warn('failed to add member', { error: message })
@@ -132,6 +152,19 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
               >
                 Invite members
               </button>
+              <button
+                className="button button-secondary button-full"
+                onClick={() => setSending(true)}
+                disabled={members.length === 0}
+                data-testid="send-button"
+              >
+                Send to a member
+              </button>
+              {members.length === 0 ? (
+                <p className="activity-hint" data-testid="send-hint">
+                  Add members first — the fund can only send to its members.
+                </p>
+              ) : null}
             </div>
           )}
 
@@ -218,6 +251,15 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
       )}
 
       {inviting && <InviteDialog groupCode={groupCode} onClose={() => setInviting(false)} />}
+
+      {sending && (
+        <SendDialog
+          fundAddress={groupCode}
+          members={members}
+          onClose={() => setSending(false)}
+          onSent={() => void load()}
+        />
+      )}
     </>
   )
 }
