@@ -50,14 +50,9 @@ export interface KastleActions {
 }
 
 const NETWORK_ALIASES: Record<string, string> = {
-  mainnet: 'mainnet',
-  kaspa_mainnet: 'mainnet',
   'testnet-10': 'testnet-10',
   kaspa_testnet_10: 'testnet-10',
   testnet_10: 'testnet-10',
-  'testnet-11': 'testnet-11',
-  kaspa_testnet_11: 'testnet-11',
-  testnet_11: 'testnet-11',
 }
 
 function normalizeNetwork(raw: string | undefined): string | null {

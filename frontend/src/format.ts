@@ -42,8 +42,5 @@ export function formatDate(epochSeconds: number): string {
 }
 
 export function formatKastleNetwork(network: string | null): string {
-  if (network === 'testnet-10') return 'testnet-10'
-  if (network === 'testnet-11') return 'testnet-11'
-  if (network === 'mainnet') return 'mainnet'
-  return network ?? 'unknown'
+  return network === 'testnet-10' ? 'testnet-10' : 'unknown'
 }

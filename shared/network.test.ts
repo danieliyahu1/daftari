@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   getNetworkConfig,
   proofUrl,
-  proofUrlFallback,
   resolveNetwork,
 } from "./network";
 
@@ -61,19 +60,13 @@ describe("getNetworkConfig", () => {
   });
 });
 
-describe("explorer proof URLs (spike #4)", () => {
+describe("explorer proof URLs", () => {
   const config = resolveNetwork("testnet-10");
   const txid = "4c173424b6b6e3b7dc7a7ba4170bd08688134db3286fc55129ac0482e9533dae";
 
-  it("builds the primary explorer URL", () => {
+  it("builds the explorer URL", () => {
     expect(proofUrl(config, txid)).toBe(
       `https://explorer-tn10.kaspa.org/txs/${txid}`,
-    );
-  });
-
-  it("builds the documented fallback explorer URL", () => {
-    expect(proofUrlFallback(config, txid)).toBe(
-      `https://tn10.kaspa.stream/transactions/${txid}`,
     );
   });
 });

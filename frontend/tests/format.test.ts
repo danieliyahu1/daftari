@@ -91,14 +91,14 @@ describe('formatDate', () => {
 })
 
 describe('formatKastleNetwork', () => {
-  it('maps the known networks to themselves', () => {
+  it('labels testnet-10 by name', () => {
     expect(formatKastleNetwork('testnet-10')).toBe('testnet-10')
-    expect(formatKastleNetwork('testnet-11')).toBe('testnet-11')
-    expect(formatKastleNetwork('mainnet')).toBe('mainnet')
   })
 
-  it('labels unknown and missing networks', () => {
-    expect(formatKastleNetwork('kaspa_testnet_10')).toBe('kaspa_testnet_10')
+  it('labels every other network unknown', () => {
+    expect(formatKastleNetwork('testnet-11')).toBe('unknown')
+    expect(formatKastleNetwork('mainnet')).toBe('unknown')
+    expect(formatKastleNetwork('kaspa_testnet_10')).toBe('unknown')
     expect(formatKastleNetwork(null)).toBe('unknown')
   })
 })

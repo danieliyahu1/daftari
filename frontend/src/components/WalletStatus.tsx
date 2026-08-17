@@ -39,7 +39,7 @@ export function WalletStatus(): JSX.Element {
     return (
       <div className="wallet-connect wallet-connect-column">
         <p className="wallet-error-text" data-testid="wrong-network-message">
-          You're on {formatKastleNetwork(wallet.network)}. Daftari runs on {EXPECTED_NETWORK}.
+          You're on the wrong network. Daftari runs on {EXPECTED_NETWORK}.
         </p>
         <button
           className="button button-primary"

@@ -2,7 +2,6 @@ export type NetworkId = "testnet-10";
 
 export interface ExplorerConfig {
   primary: string;
-  fallback: string;
 }
 
 export interface NetworkConfig {
