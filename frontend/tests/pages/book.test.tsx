@@ -47,9 +47,20 @@ describe('BookPage', () => {
   })
 
   it('shows the loading state while reading the book', async () => {
-    stubApi({ [BOOK_PATH]: { body: () => bookStub() } })
+    let resolveFetch: (() => void) | undefined
+    const pending = new Promise<Response>((resolve) => {
+      resolveFetch = () =>
+        resolve(
+          new Response(JSON.stringify(bookStub()), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
+    })
+    global.fetch = vi.fn(async () => pending)
     renderBook()
-    expect(screen.getByTestId('book-loading')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('book-loading')).toBeInTheDocument())
+    resolveFetch?.()
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
   })
 
@@ -101,7 +112,8 @@ describe('BookPage', () => {
   it('shows the empty-book copy while keeping the balance', async () => {
     stubApi({ [BOOK_PATH]: { body: bookStub() } })
     renderBook()
-    await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument()
     expect(
       screen.getByText('No payments yet. The book starts with the first payment in.'),
     ).toBeInTheDocument()

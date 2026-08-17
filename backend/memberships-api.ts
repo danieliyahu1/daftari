@@ -70,6 +70,15 @@ export async function handleAddMember(
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "not-a-registered-group" });
       throw new AppError("invalid", UNREGISTERED_GROUP_COPY);
     }
+    if (chamaAddress === memberAddress) {
+      logger.warn("member add refused", { chamaAddress, memberAddress, reason: "self-add" });
+      throw new AppError("invalid", "A chama cannot add itself as a member.");
+    }
+    const member = wallets.get(memberAddress);
+    if (member !== null && member.kind === "group") {
+      logger.warn("member add refused", { chamaAddress, memberAddress, reason: "member-is-a-group" });
+      throw new AppError("invalid", "A group cannot join another chama.");
+    }
     if (!(await isCounterpartyOf(chain, chamaAddress, memberAddress))) {
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "not-a-counterparty" });
       throw new AppError("invalid", "This wallet hasn't paid into the chama.");

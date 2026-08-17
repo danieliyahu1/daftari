@@ -199,17 +199,17 @@ const NO_WALLETS: BookWalletResolver = {
 };
 
 const COUNTERPARTY_PAGE_SIZE = 50;
-const COUNTERPARTY_MAX_PAGES = 10;
 
 // Whether an address has transacted with the group — it appears as an input
-// or output party on any page of the group's transactions.
+// or output party on any page of the group's transactions. Pages the whole
+// history; there is no depth cap, so an early payer is still found.
 export async function isCounterpartyOf(
   chain: BookChain,
   groupAddress: string,
   address: string,
 ): Promise<boolean> {
   let offset = 0;
-  for (let page = 0; page < COUNTERPARTY_MAX_PAGES; page++) {
+  for (;;) {
     const txs = await chain.getFullTransactions(groupAddress, {
       limit: COUNTERPARTY_PAGE_SIZE,
       offset,
@@ -229,7 +229,6 @@ export async function isCounterpartyOf(
     if (txs.length < COUNTERPARTY_PAGE_SIZE) return false;
     offset += COUNTERPARTY_PAGE_SIZE;
   }
-  return false;
 }
 
 export async function handleGetBook(

@@ -101,7 +101,10 @@ export function BookPage(): JSX.Element {
   )
 
   const canPay = wallet.status === 'connected' && wallet.address !== null
-  const noWallet = wallet.status === 'not-installed'
+  const noWallet =
+    wallet.status === 'idle' ||
+    wallet.status === 'not-installed' ||
+    wallet.status === 'disconnected'
 
   return (
     <div className="book" data-testid="book">
@@ -149,7 +152,7 @@ export function BookPage(): JSX.Element {
                     key={row.txid}
                     row={row}
                     onAdd={
-                      isGroup && !row.other_is_member
+                      isGroup && !row.other_is_member && row.other_kind !== 'group'
                         ? () => void handleAdd(row.other_address)
                         : undefined
                     }
@@ -179,13 +182,15 @@ export function BookPage(): JSX.Element {
               >
                 Invite someone to contribute
               </button>
-              <button
-                className="button button-primary button-full"
-                onClick={() => setPaying(true)}
-                data-testid="pay-button"
-              >
-                Pay into the group
-              </button>
+              {!isGroup && (
+                <button
+                  className="button button-primary button-full"
+                  onClick={() => setPaying(true)}
+                  data-testid="pay-button"
+                >
+                  Pay into the group
+                </button>
+              )}
             </div>
           )}
         </>
