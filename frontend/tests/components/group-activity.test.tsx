@@ -13,6 +13,10 @@ import {
   USER_ADDRESS,
 } from '../helpers'
 
+vi.mock('../../src/auth/AuthProvider', () => ({
+  useAuth: () => ({ status: 'ready', error: null, address: USER_ADDRESS, signIn: vi.fn(async () => {}) }),
+}))
+
 const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 
 const TXID = 'ab'.repeat(32)

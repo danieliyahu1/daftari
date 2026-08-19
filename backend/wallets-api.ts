@@ -1,5 +1,5 @@
 import type { WalletKind } from "../shared/types";
-import { validAddress, toRouteResult } from "./errors";
+import { toRouteResult } from "./errors";
 import type { RouteResult } from "./errors";
 import { AppError } from "./errors";
 import { logger } from "./logger";
@@ -8,7 +8,6 @@ import type { WalletStore } from "./wallet-store";
 export const NAME_ERROR_COPY = "Names are between 2 and 20 characters.";
 
 export interface RegisterWalletInput {
-  address?: unknown;
   name?: unknown;
   kind?: unknown;
 }
@@ -35,10 +34,11 @@ function validateKind(value: unknown): WalletKind {
 
 export function handleRegisterWallet(
   store: WalletStore,
+  requester: string,
   input: RegisterWalletInput,
 ): RouteResult {
   try {
-    const address = validAddress(input.address, "address");
+    const address = requester;
     const name = validateName(input.name);
     const kind = validateKind(input.kind);
     const wallet = store.register(address, name, kind);

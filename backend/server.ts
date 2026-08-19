@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app";
+import { SqliteAuthStore } from "./auth-store";
 import { logger } from "./logger";
 import { SqliteMembershipStore } from "./membership-store";
 import { SqliteWalletStore } from "./wallet-store";
@@ -11,8 +12,25 @@ const dbFilename = process.env.DAFTARI_DB ?? path.join(dirname, "..", "daftari.d
 
 const walletStore = new SqliteWalletStore({ filename: dbFilename });
 const store = new SqliteMembershipStore({ filename: dbFilename });
+const authStore = new SqliteAuthStore({ filename: dbFilename });
 
-const app = createApp({ store, walletStore });
+const authSecretRaw =
+  process.env.DAFTARI_AUTH_SECRET ??
+  "daftari-dev-only-secret-change-me-in-production";
+if (process.env.DAFTARI_AUTH_SECRET === undefined) {
+  logger.warn("DAFTARI_AUTH_SECRET is not set; using an insecure development secret");
+}
+const authSecret = new TextEncoder().encode(authSecretRaw);
+
+const origin = process.env.DAFTARI_ORIGIN ?? "http://localhost:5173";
+
+const app = createApp({
+  store,
+  walletStore,
+  authStore,
+  authSecret,
+  origin,
+});
 
 process.on("unhandledRejection", (reason) => {
   logger.error("unhandled promise rejection", {

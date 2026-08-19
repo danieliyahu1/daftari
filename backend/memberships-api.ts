@@ -8,13 +8,16 @@ import { logger } from "./logger";
 import type { MembershipStore } from "./membership-store";
 import type { WalletStore } from "./wallet-store";
 
+export const UNREGISTERED_MEMBER_COPY =
+  "Only registered members can join. Ask them to name their wallet in the app first.";
+
 export function handleGetHome(
   store: MembershipStore,
   wallets: WalletStore,
-  user: unknown,
+  requester: string,
 ): RouteResult {
   try {
-    const userAddress = requiredStr(user, "user");
+    const userAddress = requester;
     const identity = wallets.get(userAddress);
     if (identity === null) {
       logger.info("home for an unregistered wallet", { userAddress });
@@ -59,12 +62,17 @@ export interface AddMemberInput {
 export async function handleAddMember(
   store: MembershipStore,
   wallets: WalletStore,
+  requester: string,
   input: AddMemberInput,
   chain: BookChain = new KaspaClient(),
 ): Promise<RouteResult> {
   try {
     const chamaAddress = validAddress(requiredStr(input.group_address, "group_address"), "group_address");
     const memberAddress = validAddress(requiredStr(input.member_address, "member_address"), "member_address");
+    if (chamaAddress !== requester) {
+      logger.warn("member add refused", { chamaAddress, requester, reason: "not-the-group" });
+      throw new AppError("unauthorized", "Only the group can add a member.");
+    }
     const group = wallets.get(chamaAddress);
     if (group === null || group.kind !== "group") {
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "not-a-registered-group" });
@@ -75,7 +83,11 @@ export async function handleAddMember(
       throw new AppError("invalid", "A chama cannot add itself as a member.");
     }
     const member = wallets.get(memberAddress);
-    if (member !== null && member.kind === "group") {
+    if (member === null) {
+      logger.warn("member add refused", { chamaAddress, memberAddress, reason: "member-unregistered" });
+      throw new AppError("invalid", UNREGISTERED_MEMBER_COPY);
+    }
+    if (member.kind !== "user") {
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "member-is-a-group" });
       throw new AppError("invalid", "A group cannot join another chama.");
     }

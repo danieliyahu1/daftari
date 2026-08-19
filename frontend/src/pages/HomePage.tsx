@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { BookGroup, Home } from '../../../shared/types'
 import { apiClient, ApiClientError } from '../api/client'
+import { useAuth } from '../auth/AuthProvider'
 import { EmptyState } from '../components/EmptyState'
 import { GroupActivity } from '../components/GroupActivity'
 import { GroupCard } from '../components/GroupCard'
@@ -13,17 +14,18 @@ const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
 
 export function HomePage(): JSX.Element {
   const wallet = useWallet()
+  const auth = useAuth()
   const registry = useRegistry()
   const [home, setHome] = useState<Home | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    if (!wallet.address) return
+    if (!wallet.address || auth.status !== 'ready') return
     setLoading(true)
     setLoadError(null)
     try {
-      const result = await apiClient.getHome(wallet.address)
+      const result = await apiClient.getHome()
       setHome(result)
       logger.info('home loaded', {
         kind: result.identity?.kind ?? null,
@@ -37,7 +39,7 @@ export function HomePage(): JSX.Element {
     } finally {
       setLoading(false)
     }
-  }, [wallet.address])
+  }, [wallet.address, auth.status])
 
   useEffect(() => {
     void load()
@@ -47,6 +49,14 @@ export function HomePage(): JSX.Element {
     return (
       <EmptyState title="Connect your wallet to see your chamas.">
         <p className="empty-sub">Your chamas live on the chain, read through your wallet.</p>
+      </EmptyState>
+    )
+  }
+
+  if (auth.status !== 'ready') {
+    return (
+      <EmptyState title="Signing you in...">
+        <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle.'}</p>
       </EmptyState>
     )
   }

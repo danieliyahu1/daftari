@@ -30,6 +30,7 @@ export function installConnectedKastle(address: string = USER_ADDRESS): MockKast
       }
       return { txJson: 'signed-tx' }
     }),
+    signMessage: vi.fn(async (_message: string) => 'fake-signature'),
     on: (event: string, handler: (...args: unknown[]) => void) => {
       ;(handlers[event] ??= []).push(handler)
     },
@@ -55,6 +56,7 @@ export function installDisconnectedKastle(): void {
     getNetwork: vi.fn(async () => 'testnet-10'),
     switchNetwork: vi.fn(async () => undefined),
     signTx: vi.fn(async () => ({ txJson: 'signed-tx' })),
+    signMessage: vi.fn(async (_message: string) => 'fake-signature'),
     on: () => {},
     off: () => {},
   } as unknown as MockKastle

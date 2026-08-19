@@ -17,7 +17,6 @@ export type PayPhase =
 
 interface PayDialogProps {
   groupCode: string
-  userAddress: string
   onClose: () => void
   onRecorded: () => void
 }
@@ -58,7 +57,7 @@ function PayOutcome({
   )
 }
 
-export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDialogProps): JSX.Element {
+export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): JSX.Element {
   const [phase, setPhase] = useState<PayPhase>({ name: 'amount' })
   const [amount, setAmount] = useState('')
   const [amountError, setAmountError] = useState<string | null>(null)
@@ -95,7 +94,6 @@ export function PayDialog({ groupCode, userAddress, onClose, onRecorded }: PayDi
     setPhase({ name: 'preparing' })
     try {
       const { signing_template } = await apiClient.preparePayment({
-        user_address: userAddress,
         chama_address: groupCode,
         amount_sompi: sompi,
       })

@@ -4,6 +4,18 @@ import type { BookRow, Wallet } from '../../../shared/types'
 import App from '../../src/App'
 import { CHAMA_ADDRESS, installConnectedKastle, uninstallKastle, USER_ADDRESS } from '../helpers'
 
+function safeEncode(value: string): string {
+  return btoa(unescape(encodeURIComponent(value)))
+}
+
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(escape(atob(value)))
+  } catch {
+    return ''
+  }
+}
+
 function setupBackend(options: { named?: boolean } = {}): void {
   const rows: BookRow[] = []
   const wallets = new Map<string, Wallet>()
@@ -38,19 +50,46 @@ function setupBackend(options: { named?: boolean } = {}): void {
         body = {}
       }
     }
+    const rawHeaders = init?.headers as Record<string, string> | undefined
+    const authHeader = rawHeaders?.['Authorization']
+    const bearer = typeof authHeader === 'string' && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+    const authedUser = bearer ? safeDecode(bearer) : ''
     const json = (status: number, payload: unknown): Response =>
       new Response(JSON.stringify(payload), {
         status,
         headers: { 'Content-Type': 'application/json' },
       })
 
+    if (method === 'POST' && path === '/api/auth/challenge') {
+      const address = String(body.address ?? '')
+      return json(200, {
+        nonce: 'n',
+        message: [
+          'Daftari wants you to sign in with your Kaspa account:',
+          address,
+          '',
+          "I'm signing into Daftari.",
+          '',
+          'URI: http://localhost:5173',
+          'Version: 1',
+          'Chain ID: testnet-10',
+          'Nonce: n',
+          'Issued At: 2026-01-01T00:00:00.000Z',
+        ].join('\n'),
+      })
+    }
+    if (method === 'POST' && path === '/api/auth/session') {
+      const message = String(body.message ?? '')
+      const address = message.split('\n')[1]?.trim() ?? ''
+      return json(200, { token: safeEncode(address), expires_in_seconds: 900 })
+    }
     if (method === 'GET' && path === '/api/wallets/resolve') {
       const addresses = (parsed.searchParams.get('addresses') ?? '').split(',').filter(Boolean)
       return json(200, { wallets: addresses.map((a) => wallets.get(a)).filter(Boolean) })
     }
     if (method === 'POST' && path === '/api/wallets/register') {
       const wallet: Wallet = {
-        address: String(body.address ?? ''),
+        address: authedUser,
         name: String(body.name ?? ''),
         kind: body.kind === 'group' ? 'group' : 'user',
         created_at: 1_700_000_000_000,
@@ -59,7 +98,7 @@ function setupBackend(options: { named?: boolean } = {}): void {
       return json(201, { wallet })
     }
     if (method === 'GET' && path === '/api/memberships') {
-      const user = parsed.searchParams.get('user') ?? ''
+      const user = authedUser
       const identity = wallets.get(user) ?? null
       if (!identity) return json(200, { identity: null, members: [], chamas: [] })
       if (identity.kind === 'group') {
@@ -97,7 +136,7 @@ function setupBackend(options: { named?: boolean } = {}): void {
       })
     }
     if (method === 'GET' && path.startsWith('/api/chamas/') && path.endsWith('/book')) {
-      const user = parsed.searchParams.get('user') ?? ''
+      const user = authedUser
       const groupAddr = decodeURIComponent(path.split('/')[3] ?? '')
       const isOwner = user === groupAddr
       const isMember = memberships.get(groupAddr)?.has(user) ?? false

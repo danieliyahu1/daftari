@@ -214,6 +214,7 @@ describe("handlePrepareWithdrawal", () => {
     const result = await handlePrepareWithdrawal(
       store,
       wallets,
+      FUND,
       prepareInput({ fund_address: undefined }),
       chain,
     );
@@ -227,6 +228,7 @@ describe("handlePrepareWithdrawal", () => {
     const result = await handlePrepareWithdrawal(
       store,
       wallets,
+      FUND,
       prepareInput({ recipient_address: undefined }),
       chain,
     );
@@ -240,6 +242,7 @@ describe("handlePrepareWithdrawal", () => {
     const result = await handlePrepareWithdrawal(
       store,
       wallets,
+      FUND,
       prepareInput({ recipient_address: MAINNET_CODE }),
       chain,
     );
@@ -254,6 +257,7 @@ describe("handlePrepareWithdrawal", () => {
       const result = await handlePrepareWithdrawal(
         store,
         wallets,
+        FUND,
         prepareInput({ amount_sompi }),
         chain,
       );
@@ -266,7 +270,7 @@ describe("handlePrepareWithdrawal", () => {
     const store = membershipStore();
     const wallets = walletStore();
     const { chain } = makeChain();
-    const result = await handlePrepareWithdrawal(store, wallets, prepareInput(), chain);
+    const result = await handlePrepareWithdrawal(store, wallets, FUND, prepareInput(), chain);
     expect(result.status).toBe(422);
     expect(result.body).toEqual({
       error: { kind: "invalid", message: NOT_A_GROUP_COPY },
@@ -279,6 +283,7 @@ describe("handlePrepareWithdrawal", () => {
     const result = await handlePrepareWithdrawal(
       store,
       wallets,
+      FUND,
       prepareInput({ recipient_address: OTHER }),
       chain,
     );
@@ -294,6 +299,7 @@ describe("handlePrepareWithdrawal", () => {
     const result = await handlePrepareWithdrawal(
       store,
       wallets,
+      FUND,
       prepareInput({ recipient_address: FUND }),
       chain,
     );
@@ -307,7 +313,7 @@ describe("handlePrepareWithdrawal", () => {
     const utxos = [utxo("c", 0, "1000000000")];
     getUtxos.mockResolvedValue(utxos);
 
-    const result = await handlePrepareWithdrawal(store, wallets, prepareInput(), chain);
+    const result = await handlePrepareWithdrawal(store, wallets, FUND, prepareInput(), chain);
 
     expect(result.status).toBe(200);
     expect(Object.keys(result.body as object)).toEqual(["signing_template"]);
@@ -331,7 +337,7 @@ describe("handlePrepareWithdrawal", () => {
     const { store, wallets } = defaultStores();
     const { chain, getUtxos } = makeChain();
     getUtxos.mockResolvedValue([utxo("c", 0, "1000")]);
-    const result = await handlePrepareWithdrawal(store, wallets, prepareInput(), chain);
+    const result = await handlePrepareWithdrawal(store, wallets, FUND, prepareInput(), chain);
     expect(result.status).toBe(422);
     expect(result.body).toMatchObject({ error: { kind: "policy" } });
   });
@@ -344,6 +350,7 @@ describe("handleFinalizeWithdrawal", () => {
     const result = await handleFinalizeWithdrawal(
       store,
       wallets,
+      FUND,
       finalizeInput({ signed: undefined }),
       chain,
     );
@@ -358,6 +365,7 @@ describe("handleFinalizeWithdrawal", () => {
     const result = await handleFinalizeWithdrawal(
       store,
       wallets,
+      FUND,
       finalizeInput({ recipient_address: OTHER }),
       chain,
     );
@@ -376,6 +384,7 @@ describe("handleFinalizeWithdrawal", () => {
     const result = await handleFinalizeWithdrawal(
       store,
       wallets,
+      FUND,
       finalizeInput(),
       chain,
     );
@@ -393,7 +402,7 @@ describe("handleFinalizeWithdrawal", () => {
     const wrongAmount = finalizeInput({
       signed: signedTx({ outputs: [{ value: "999999999" }] }),
     });
-    const result = await handleFinalizeWithdrawal(store, wallets, wrongAmount, chain);
+    const result = await handleFinalizeWithdrawal(store, wallets, FUND, wrongAmount, chain);
     expect(result.status).toBe(422);
     expect(result.body).toMatchObject({ error: { kind: "policy" } });
     expect(broadcastTransaction).not.toHaveBeenCalled();
@@ -410,6 +419,7 @@ describe("handleFinalizeWithdrawal", () => {
     const result = await handleFinalizeWithdrawal(
       store,
       wallets,
+      FUND,
       finalizeInput(),
       chain,
       { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, sleeper: async () => {} },
@@ -444,6 +454,7 @@ describe("handleFinalizeWithdrawal", () => {
     const result = await handleFinalizeWithdrawal(
       store,
       wallets,
+      FUND,
       finalizeInput(),
       chain,
       { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, sleeper: async () => {} },
@@ -462,7 +473,7 @@ describe("handleFinalizeWithdrawal", () => {
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockResolvedValue(parentTx(1_000, FUND));
 
-    const result = await handleFinalizeWithdrawal(store, wallets, finalizeInput(), chain);
+    const result = await handleFinalizeWithdrawal(store, wallets, FUND, finalizeInput(), chain);
 
     expect(result.status).toBe(422);
     expect(result.body).toMatchObject({ error: { kind: "policy" } });

@@ -43,6 +43,42 @@ function convert5to8(values: readonly number[]): number[] {
   return out;
 }
 
+function convert8to5(values: readonly number[]): number[] {
+  const out: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+  for (const value of values) {
+    buffer = (buffer << 8) | value;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      out.push((buffer >> bits) & 0x1f);
+      buffer &= (1 << bits) - 1;
+    }
+  }
+  if (bits > 0) out.push((buffer << (5 - bits)) & 0x1f);
+  return out;
+}
+
+function checksumFor(prefix: string, payload: readonly number[]): number[] {
+  const prefixValues: number[] = [];
+  for (const char of prefix) {
+    prefixValues.push(char.charCodeAt(0) & 0x1f);
+  }
+  const checksum = polymod([...prefixValues, 0, ...payload, ...new Array<number>(CHECKSUM_WORDS).fill(0)]);
+  const words: number[] = [];
+  for (let i = 0; i < CHECKSUM_WORDS; i++) {
+    words.push(Number((checksum >> BigInt(5 * (CHECKSUM_WORDS - 1 - i))) & 0x1fn));
+  }
+  return words;
+}
+
+function encodeWords(values: readonly number[]): string {
+  let out = "";
+  for (const value of values) out += CHARSET[value];
+  return out;
+}
+
 export function isWellFormedKaspaAddress(raw: string, prefix: string): boolean {
   const separator = raw.lastIndexOf(":");
   if (separator !== prefix.length || raw.slice(0, separator) !== prefix) {
@@ -110,6 +146,16 @@ export function decodeAddressPayload(
     return null;
   }
   return { version: bytes[0], payload: Uint8Array.from(bytes.slice(1)) };
+}
+
+// Encodes a 32-byte x-only public key as a v0 P2PK address for the given
+// prefix (e.g. "kaspatest"). The inverse of decodeAddressPayload for v0 keys.
+export function pubkeyToP2PKAddress(pubkey: Uint8Array, prefix: string): string | null {
+  if (pubkey.length !== 32) return null;
+  const bytes = [0, ...pubkey];
+  const payload = convert8to5(bytes);
+  const checksum = checksumFor(prefix, payload);
+  return `${prefix}:${encodeWords([...payload, ...checksum])}`;
 }
 
 function bytesToHex(bytes: Uint8Array): string {

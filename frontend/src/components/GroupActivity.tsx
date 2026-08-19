@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Book, RosterMember } from '../../../shared/types'
 import { apiClient, ApiClientError } from '../api/client'
+import { useAuth } from '../auth/AuthProvider'
 import { PAGE_SIZE } from '../constants'
 import { sompiToKas } from '../format'
 import { logger } from '../logger'
@@ -20,6 +21,7 @@ interface GroupActivityProps {
 
 export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityProps): JSX.Element {
   const wallet = useWallet()
+  const auth = useAuth()
   const [book, setBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -31,28 +33,30 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
   const [adding, setAdding] = useState<string | null>(null)
   const [members, setMembers] = useState<RosterMember[]>([])
 
+  const ready = auth.status === 'ready'
+
   const refreshMembers = useCallback(async () => {
-    if (!wallet.address) return
+    if (!wallet.address || auth.status !== 'ready') return
     try {
-      const home = await apiClient.getHome(wallet.address)
+      const home = await apiClient.getHome()
       setMembers(home.members)
     } catch (err) {
       logger.warn('failed to load fund members', {
         error: err instanceof Error ? err.message : String(err),
       })
     }
-  }, [wallet.address])
+  }, [wallet.address, auth.status])
 
   useEffect(() => {
-    if (inviteFirst && wallet.address !== null) void refreshMembers()
-  }, [inviteFirst, wallet.address, refreshMembers])
+    if (inviteFirst && wallet.address !== null && ready) void refreshMembers()
+  }, [inviteFirst, wallet.address, ready, refreshMembers])
 
   const load = useCallback(async () => {
-    if (!groupCode) return
+    if (!groupCode || auth.status !== 'ready') return
     setLoading(true)
     setLoadError(null)
     try {
-      const result = await apiClient.getBook(groupCode, PAGE_SIZE, 0, wallet.address ?? undefined)
+      const result = await apiClient.getBook(groupCode, PAGE_SIZE, 0)
       setBook(result)
       setHasMore(result.rows.length === PAGE_SIZE)
       logger.info('book loaded', {
@@ -67,17 +71,17 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
     } finally {
       setLoading(false)
     }
-  }, [groupCode, wallet.address])
+  }, [groupCode, auth.status])
 
   useEffect(() => {
-    if (wallet.address !== null) void load()
-  }, [load, wallet.address])
+    if (wallet.address !== null && ready) void load()
+  }, [load, wallet.address, ready])
 
   const loadMore = useCallback(async () => {
-    if (!groupCode || !book) return
+    if (!groupCode || !book || auth.status !== 'ready') return
     setLoadingMore(true)
     try {
-      const result = await apiClient.getBook(groupCode, PAGE_SIZE, book.rows.length, wallet.address ?? undefined)
+      const result = await apiClient.getBook(groupCode, PAGE_SIZE, book.rows.length)
       setBook((prev) => (prev ? { ...prev, rows: [...prev.rows, ...result.rows] } : prev))
       setHasMore(result.rows.length === PAGE_SIZE)
       logger.info('book rows appended', {
@@ -91,7 +95,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
     } finally {
       setLoadingMore(false)
     }
-  }, [groupCode, book, wallet.address])
+  }, [groupCode, book, auth.status])
 
   const isGroup = wallet.address !== null && wallet.address === groupCode
 
@@ -118,7 +122,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
     [groupCode, load],
   )
 
-  const canPay = wallet.status === 'connected' && wallet.address !== null
+  const canPay = wallet.status === 'connected' && wallet.address !== null && auth.status === 'ready'
   const noWallet =
     wallet.status === 'idle' ||
     wallet.status === 'not-installed' ||
@@ -129,6 +133,10 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
       {noWallet ? (
         <EmptyState title="Connect your wallet to see this chama.">
           <p className="empty-sub">Only members can see a chama.</p>
+        </EmptyState>
+      ) : auth.status !== 'ready' ? (
+        <EmptyState title="Signing you in...">
+          <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle.'}</p>
         </EmptyState>
       ) : loading ? (
         <div className="loading-container" data-testid="book-loading">
@@ -244,7 +252,6 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
       {paying && wallet.address && (
         <PayDialog
           groupCode={groupCode}
-          userAddress={wallet.address}
           onClose={() => setPaying(false)}
           onRecorded={() => void load()}
         />

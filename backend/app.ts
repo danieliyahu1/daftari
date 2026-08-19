@@ -9,6 +9,7 @@ import { handleGetBook } from "./book-api";
 import type { BookChain } from "./book-api";
 import { toRouteResult } from "./errors";
 import type { RouteResult } from "./errors";
+import { AppError } from "./errors";
 import { logger } from "./logger";
 import type { MembershipStore } from "./membership-store";
 import {
@@ -24,6 +25,13 @@ import {
   handlePrepareWithdrawal,
 } from "./withdrawals-api";
 import type { WalletStore } from "./wallet-store";
+import type { AuthStore } from "./auth-store";
+import {
+  handleCreateChallenge,
+  handleCreateSession,
+  verifyToken,
+} from "./auth";
+import type { AuthConfig } from "./auth";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,18 +46,36 @@ function isAsset(url: string): boolean {
   );
 }
 
+interface AuthenticatedRequest extends Request {
+  user?: { address: string };
+}
+
 export interface AppDependencies {
   store: MembershipStore;
   walletStore: WalletStore;
+  authStore: AuthStore;
+  authSecret: Uint8Array;
+  origin: string;
   bookChain?: BookChain;
   paymentChain?: PaymentChain;
   confirmPolicy?: ConfirmPolicy;
 }
 
-export function createApp({ store, walletStore, bookChain, paymentChain, confirmPolicy }: AppDependencies): express.Express {
+export function createApp({
+  store,
+  walletStore,
+  authStore,
+  authSecret,
+  origin,
+  bookChain,
+  paymentChain,
+  confirmPolicy,
+}: AppDependencies): express.Express {
   const app = express();
   app.use(express.json());
   app.use(cors());
+
+  const authConfig: AuthConfig = { origin, secret: authSecret };
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const requestId = randomUUID();
@@ -73,64 +99,85 @@ export function createApp({ store, walletStore, bookChain, paymentChain, confirm
     requestContext.run({ requestId }, next);
   });
 
+  // Requires a valid bearer token; sets req.user from the token's subject.
+  async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    const user = await verifyToken(req.headers.authorization, authSecret);
+    if (user === null) {
+      send(res, toRouteResult(new AppError("unauthorized", "You need to sign in.")));
+      return;
+    }
+    req.user = user;
+    next();
+  }
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
   });
 
-  app.get("/api/memberships", (req: Request, res: Response) => {
-    send(res, handleGetHome(store, walletStore, req.query.user));
+  app.post("/api/auth/challenge", (req: Request, res: Response) => {
+    send(res, handleCreateChallenge(authStore, req.body ?? {}, authConfig));
   });
 
-  app.post("/api/memberships", (req: Request, res: Response) => {
-    void handleAddMember(store, walletStore, req.body ?? {}, bookChain).then((result) =>
+  app.post("/api/auth/session", async (req: Request, res: Response) => {
+    send(res, await handleCreateSession(authStore, req.body ?? {}, authConfig));
+  });
+
+  app.get("/api/memberships", requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    send(res, handleGetHome(store, walletStore, req.user!.address));
+  });
+
+  app.post("/api/memberships", requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    void handleAddMember(store, walletStore, req.user!.address, req.body ?? {}, bookChain).then((result) =>
       send(res, result),
     );
   });
 
-  app.post("/api/wallets/register", (req: Request, res: Response) => {
-    send(res, handleRegisterWallet(walletStore, req.body ?? {}));
+  app.post("/api/wallets/register", requireAuth, (req: AuthenticatedRequest, res: Response) => {
+    send(res, handleRegisterWallet(walletStore, req.user!.address, req.body ?? {}));
   });
 
   app.get("/api/wallets/resolve", (req: Request, res: Response) => {
     send(res, handleResolveWallets(walletStore, req.query.addresses));
   });
 
-  app.get("/api/chamas/:code/book", async (req: Request, res: Response) => {
+  app.get("/api/chamas/:code/book", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     const result = await handleGetBook(
       req.params.code,
       req.query,
       bookChain,
       walletStore,
       store,
-      req.query.user,
+      req.user!.address,
     );
     send(res, result);
   });
 
-  app.post("/api/payments/prepare", async (req: Request, res: Response) => {
-    const result = await handlePreparePayment(req.body ?? {}, paymentChain);
+  app.post("/api/payments/prepare", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const result = await handlePreparePayment(req.user!.address, req.body ?? {}, paymentChain, walletStore);
     send(res, result);
   });
 
-  app.post("/api/payments/finalize", async (req: Request, res: Response) => {
+  app.post("/api/payments/finalize", requireAuth, async (req: Request, res: Response) => {
     const result = await handleFinalizePayment(req.body ?? {}, paymentChain, confirmPolicy);
     send(res, result);
   });
 
-  app.post("/api/withdrawals/prepare", async (req: Request, res: Response) => {
+  app.post("/api/withdrawals/prepare", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     const result = await handlePrepareWithdrawal(
       store,
       walletStore,
+      req.user!.address,
       req.body ?? {},
       paymentChain,
     );
     send(res, result);
   });
 
-  app.post("/api/withdrawals/finalize", async (req: Request, res: Response) => {
+  app.post("/api/withdrawals/finalize", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     const result = await handleFinalizeWithdrawal(
       store,
       walletStore,
+      req.user!.address,
       req.body ?? {},
       paymentChain,
       confirmPolicy,

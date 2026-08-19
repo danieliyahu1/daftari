@@ -12,6 +12,10 @@ import type {
 } from "./kaspa-api-types";
 import { buildTransfer, estimateFee } from "./tx-builder";
 import { logger } from "./logger";
+import type { WalletStore } from "./wallet-store";
+
+export const UNREGISTERED_PAYER_COPY =
+  "Name your wallet in the app before you can pay.";
 
 export interface PaymentChain {
   getUtxos(address: string): Promise<UtxoResponse[]>;
@@ -21,7 +25,6 @@ export interface PaymentChain {
 }
 
 export interface PrepareInput {
-  user_address?: unknown;
   chama_address?: unknown;
   amount_sompi?: unknown;
 }
@@ -339,13 +342,26 @@ export function toSubmitTxModel(signed: SignedTransaction): SubmitTxModel {
 }
 
 export async function handlePreparePayment(
+  requester: string,
   input: PrepareInput,
   chain: PaymentChain = new KaspaClient(),
+  wallets?: WalletStore,
 ): Promise<RouteResult> {
   try {
-    const userAddress = requireAddress(input.user_address, "user_address");
+    const userAddress = requester;
     const chamaAddress = requireAddress(input.chama_address, "chama_address");
     const amountSompi = requirePositiveSompi(input.amount_sompi);
+    if (wallets !== undefined) {
+      const payer = wallets.get(userAddress);
+      if (payer === null || payer.kind !== "user") {
+        logger.warn("payment prepare refused", {
+          userAddress,
+          chamaAddress,
+          reason: "payer-unregistered",
+        });
+        throw new AppError("invalid", UNREGISTERED_PAYER_COPY);
+      }
+    }
     const feerate = await feeRate(chain);
     const utxos = await chain.getUtxos(userAddress);
     const built = buildTransfer({

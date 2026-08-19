@@ -22,12 +22,25 @@ export class ApiClientError extends Error {
   }
 }
 
+let authToken: string | null = null
+
+export function getAuthToken(): string | null {
+  return authToken
+}
+
+export function setAuthToken(token: string | null): void {
+  authToken = token
+}
+
 function buildUrl(base: string, path: string): string {
   return base ? `${base}${path}` : `${BASE_URL}${path}`
 }
 
 function requestHeaders(hasBody: boolean): Record<string, string> | undefined {
-  return hasBody ? { 'Content-Type': 'application/json' } : undefined
+  const headers: Record<string, string> = {}
+  if (hasBody) headers['Content-Type'] = 'application/json'
+  if (authToken !== null) headers.Authorization = `Bearer ${authToken}`
+  return Object.keys(headers).length > 0 ? headers : undefined
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -97,24 +110,28 @@ export function createApiClient(baseUrl?: string) {
   }
 
   return {
-    getHome(userAddress: string): Promise<Home> {
-      return request('GET', `/memberships?user=${encodeURIComponent(userAddress)}`)
+    createChallenge(address: string): Promise<{ nonce: string; message: string }> {
+      return request('POST', '/auth/challenge', { address })
+    },
+    createSession(message: string, signature: string): Promise<{ token: string; expires_in_seconds: number }> {
+      return request('POST', '/auth/session', { message, signature })
+    },
+    getHome(): Promise<Home> {
+      return request('GET', '/memberships')
     },
     addMember(data: { group_address: string; member_address: string }): Promise<{ membership: Membership }> {
       return request('POST', '/memberships', data)
     },
-    registerWallet(data: { address: string; name: string; kind: WalletKind }): Promise<{ wallet: Wallet }> {
+    registerWallet(data: { name: string; kind: WalletKind }): Promise<{ wallet: Wallet }> {
       return request('POST', '/wallets/register', data)
     },
     resolveWallets(addresses: string[]): Promise<{ wallets: Wallet[] }> {
       return request('GET', `/wallets/resolve?addresses=${encodeURIComponent(addresses.join(','))}`)
     },
-    getBook(code: string, limit: number, offset: number, userAddress?: string): Promise<Book> {
-      const user = userAddress ? `&user=${encodeURIComponent(userAddress)}` : ''
-      return request('GET', `/chamas/${encodeURIComponent(code)}/book?limit=${limit}&offset=${offset}${user}`)
+    getBook(code: string, limit: number, offset: number): Promise<Book> {
+      return request('GET', `/chamas/${encodeURIComponent(code)}/book?limit=${limit}&offset=${offset}`)
     },
     preparePayment(data: {
-      user_address: string
       chama_address: string
       amount_sompi: string
     }): Promise<{ signing_template: string }> {

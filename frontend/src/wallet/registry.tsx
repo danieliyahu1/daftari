@@ -91,9 +91,7 @@ export function RegistryProvider({ children }: RegistryProviderProps): JSX.Eleme
 
   const register = useCallback(
     async (name: string, kind: WalletKind) => {
-      if (!wallet.address) return
       const { wallet: identity } = await apiClient.registerWallet({
-        address: wallet.address,
         name,
         kind,
       })
@@ -104,7 +102,7 @@ export function RegistryProvider({ children }: RegistryProviderProps): JSX.Eleme
         successTimer.current = undefined
       }, SUCCESS_DELAY_MS)
     },
-    [wallet.address],
+    [],
   )
 
   const retry = useCallback(() => {

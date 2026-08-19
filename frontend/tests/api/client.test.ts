@@ -1,4 +1,4 @@
-import { ApiClientError, createApiClient } from '../../src/api/client'
+import { ApiClientError, createApiClient, setAuthToken } from '../../src/api/client'
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -11,17 +11,18 @@ describe('createApiClient', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+    setAuthToken(null)
   })
 
   it('loads the home for the connected address', async () => {
     const home = { identity: null, members: [], chamas: [] }
     global.fetch = vi.fn(async () => jsonResponse(200, home))
 
-    const result = await createApiClient().getHome('kaspatest:abc')
+    const result = await createApiClient().getHome()
 
     expect(result).toEqual(home)
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/memberships?user=kaspatest%3Aabc',
+      '/api/memberships',
       expect.objectContaining({ method: 'GET' }),
     )
   })
@@ -47,28 +48,27 @@ describe('createApiClient', () => {
     )
   })
 
-  it('reads the book with encoded code, pagination query, and requester', async () => {
-    global.fetch = vi.fn(async () =>
-      jsonResponse(200, { balance_sompi: '0', rows: [], group: { address: 'chama', name: 'Plot', kind: 'group' } }),
-    )
+  it('sends the bearer token on requests when one is set', async () => {
+    setAuthToken('abc.def.ghi')
+    global.fetch = vi.fn(async () => jsonResponse(200, { identity: null, members: [], chamas: [] }))
 
-    await createApiClient().getBook('kaspatest:abc', 50, 100, 'kaspatest:me')
+    await createApiClient().getHome()
 
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/chamas/kaspatest%3Aabc/book?limit=50&offset=100&user=kaspatest%3Ame',
-      expect.objectContaining({ method: 'GET' }),
+      '/api/memberships',
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer abc.def.ghi' }) }),
     )
   })
 
-  it('reads the book without a requester when none is connected', async () => {
+  it('reads the book with encoded code and pagination query', async () => {
     global.fetch = vi.fn(async () =>
       jsonResponse(200, { balance_sompi: '0', rows: [], group: { address: 'chama', name: 'Plot', kind: 'group' } }),
     )
 
-    await createApiClient().getBook('kaspatest:abc', 50, 0)
+    await createApiClient().getBook('kaspatest:abc', 50, 100)
 
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/chamas/kaspatest%3Aabc/book?limit=50&offset=0',
+      '/api/chamas/kaspatest%3Aabc/book?limit=50&offset=100',
       expect.objectContaining({ method: 'GET' }),
     )
   })
@@ -81,6 +81,40 @@ describe('createApiClient', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:4100/api/chamas/kaspatest%3Aabc/book?limit=50&offset=0',
       expect.anything(),
+    )
+  })
+
+  it('requests a challenge with the address', async () => {
+    global.fetch = vi.fn(async () =>
+      jsonResponse(200, { nonce: 'n', message: 'sign this' }),
+    )
+
+    const result = await createApiClient().createChallenge('kaspatest:abc')
+
+    expect(result).toEqual({ nonce: 'n', message: 'sign this' })
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/challenge',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ address: 'kaspatest:abc' }),
+      }),
+    )
+  })
+
+  it('creates a session with the message and signature', async () => {
+    global.fetch = vi.fn(async () =>
+      jsonResponse(200, { token: 'tok', expires_in_seconds: 900 }),
+    )
+
+    const result = await createApiClient().createSession('sign this', 'sig')
+
+    expect(result).toEqual({ token: 'tok', expires_in_seconds: 900 })
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/session',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ message: 'sign this', signature: 'sig' }),
+      }),
     )
   })
 
@@ -106,7 +140,7 @@ describe('createApiClient', () => {
     global.fetch = vi.fn(async () => jsonResponse(503, { message: 'Upstream unavailable' }))
 
     const error = (await createApiClient()
-      .getHome('kaspatest:abc')
+      .getHome()
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(503)
@@ -117,7 +151,7 @@ describe('createApiClient', () => {
     global.fetch = vi.fn(async () => new Response('oops', { status: 500 }))
 
     const error = (await createApiClient()
-      .getHome('kaspatest:abc')
+      .getHome()
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(500)
@@ -130,7 +164,7 @@ describe('createApiClient', () => {
     })
 
     const error = (await createApiClient()
-      .getHome('kaspatest:abc')
+      .getHome()
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(0)
@@ -143,7 +177,7 @@ describe('createApiClient', () => {
     })
 
     const error = (await createApiClient()
-      .getHome('kaspatest:abc')
+      .getHome()
       .catch((err: unknown) => err)) as ApiClientError
 
     expect(error.status).toBe(0)

@@ -10,15 +10,15 @@ import type {
 import {
   handleFinalizePayment,
   handlePreparePayment,
+  UNREGISTERED_PAYER_COPY,
   waitForAcceptance,
 } from "./payments-api";
 import type { PaymentChain } from "./payments-api";
+import { SqliteWalletStore } from "./wallet-store";
 import { buildTransfer } from "./tx-builder";
 
 const USER = "kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl";
 const GROUP = "kaspatest:qzvp9r3gxg4wvcl44lm5phav2gz5zfx2de7qqqwd3hjlr53rtsn6wefhk0aj8";
-const MAINNET_CODE =
-  "kaspa:qp0l70zd5x85ttwd6jv7g3s3a8llzj96d8dncn4zmhv4tlzx5k2jyqh70xmfj";
 
 const USER_SCRIPT =
   "20c526ba87b87d4db186d74143da44444d2b782b7d8eb307ff2c0cde8c85986676ac";
@@ -148,12 +148,10 @@ function makeChain(overrides: Partial<PaymentChain> = {}): {
 }
 
 function prepareInput(overrides: {
-  user_address?: unknown;
   chama_address?: unknown;
   amount_sompi?: unknown;
 } = {}) {
   return {
-    user_address: USER,
     chama_address: GROUP,
     amount_sompi: "500000000",
     ...overrides,
@@ -161,19 +159,10 @@ function prepareInput(overrides: {
 }
 
 describe("handlePreparePayment", () => {
-  it("returns 400 when user_address is missing", async () => {
-    const { chain } = makeChain();
-    const result = await handlePreparePayment(
-      prepareInput({ user_address: undefined }),
-      chain,
-    );
-    expect(result.status).toBe(400);
-    expect(result.body).toEqual({ error: { kind: "invalid", message: expect.any(String) } });
-  });
-
   it("returns 400 when chama_address is missing", async () => {
     const { chain } = makeChain();
     const result = await handlePreparePayment(
+      USER,
       prepareInput({ chama_address: undefined }),
       chain,
     );
@@ -184,6 +173,7 @@ describe("handlePreparePayment", () => {
   it("returns 400 when amount_sompi is missing", async () => {
     const { chain } = makeChain();
     const result = await handlePreparePayment(
+      USER,
       prepareInput({ amount_sompi: undefined }),
       chain,
     );
@@ -191,20 +181,10 @@ describe("handlePreparePayment", () => {
     expect(result.body).toMatchObject({ error: { kind: "invalid" } });
   });
 
-  it("returns 422 validation for a user address on another network", async () => {
-    const { chain, getUtxos } = makeChain();
-    const result = await handlePreparePayment(
-      prepareInput({ user_address: MAINNET_CODE }),
-      chain,
-    );
-    expect(result.status).toBe(422);
-    expect(result.body).toMatchObject({ error: { kind: "invalid" } });
-    expect(getUtxos).not.toHaveBeenCalled();
-  });
-
   it("returns 422 validation for a malformed chama address", async () => {
     const { chain, getUtxos } = makeChain();
     const result = await handlePreparePayment(
+      USER,
       prepareInput({ chama_address: "kaspatest:not-an-address" }),
       chain,
     );
@@ -217,6 +197,7 @@ describe("handlePreparePayment", () => {
     const { chain, getUtxos } = makeChain();
     for (const amount_sompi of ["0", "-1", "abc", "1.5"]) {
       const result = await handlePreparePayment(
+        USER,
         prepareInput({ amount_sompi }),
         chain,
       );
@@ -231,7 +212,7 @@ describe("handlePreparePayment", () => {
     const utxos = [utxo("a", 0, "1000000000")];
     getUtxos.mockResolvedValue(utxos);
 
-    const result = await handlePreparePayment(prepareInput(), chain);
+    const result = await handlePreparePayment(USER, prepareInput(), chain);
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
@@ -257,7 +238,7 @@ describe("handlePreparePayment", () => {
     const { chain, getUtxos } = makeChain();
     getUtxos.mockResolvedValue([utxo("a", 0, "1000000000")]);
 
-    const result = await handlePreparePayment(prepareInput(), chain);
+    const result = await handlePreparePayment(USER, prepareInput(), chain);
 
     expect(result.status).toBe(200);
     expect(Object.keys(result.body as object)).toEqual(["signing_template"]);
@@ -265,15 +246,51 @@ describe("handlePreparePayment", () => {
 
   it("returns 422 policy when the user has no spendable UTXOs", async () => {
     const { chain } = makeChain();
-    const result = await handlePreparePayment(prepareInput(), chain);
+    const result = await handlePreparePayment(USER, prepareInput(), chain);
     expect(result.status).toBe(422);
     expect(result.body).toMatchObject({ error: { kind: "policy" } });
+  });
+
+  it("refuses an unregistered payer when a wallet store is provided", async () => {
+    const { chain, getUtxos } = makeChain();
+    const wallets = new SqliteWalletStore();
+    const result = await handlePreparePayment(USER, prepareInput(), chain, wallets);
+    expect(result.status).toBe(422);
+    expect(result.body).toEqual({
+      error: { kind: "invalid", message: UNREGISTERED_PAYER_COPY },
+    });
+    expect(getUtxos).not.toHaveBeenCalled();
+    wallets.close();
+  });
+
+  it("refuses a registered group-kind payer when a wallet store is provided", async () => {
+    const { chain, getUtxos } = makeChain();
+    const wallets = new SqliteWalletStore();
+    wallets.register(GROUP, "Plot", "group");
+    const result = await handlePreparePayment(USER, prepareInput(), chain, wallets);
+    expect(result.status).toBe(422);
+    expect(result.body).toEqual({
+      error: { kind: "invalid", message: UNREGISTERED_PAYER_COPY },
+    });
+    expect(getUtxos).not.toHaveBeenCalled();
+    wallets.close();
+  });
+
+  it("allows a registered user payer when a wallet store is provided", async () => {
+    const { chain, getUtxos } = makeChain();
+    getUtxos.mockResolvedValue([utxo("a", 0, "1000000000")]);
+    const wallets = new SqliteWalletStore();
+    wallets.register(USER, "Amina", "user");
+    const result = await handlePreparePayment(USER, prepareInput(), chain, wallets);
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ signing_template: expect.any(String) });
+    wallets.close();
   });
 
   it("returns 422 policy when the UTXOs cannot cover amount plus fee", async () => {
     const { chain, getUtxos } = makeChain();
     getUtxos.mockResolvedValue([utxo("a", 0, "1000")]);
-    const result = await handlePreparePayment(prepareInput(), chain);
+    const result = await handlePreparePayment(USER, prepareInput(), chain);
     expect(result.status).toBe(422);
     expect(result.body).toMatchObject({ error: { kind: "policy" } });
   });
@@ -283,7 +300,7 @@ describe("handlePreparePayment", () => {
     getUtxos.mockRejectedValue(
       new UpstreamError("upstream down", 503, "unavailable", { error: "busy" }),
     );
-    const result = await handlePreparePayment(prepareInput(), chain);
+    const result = await handlePreparePayment(USER, prepareInput(), chain);
     expect(result.status).toBe(503);
     expect(result.body).toEqual({
       error: { kind: "upstream", source: "unavailable", message: "busy" },

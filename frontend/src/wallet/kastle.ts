@@ -32,6 +32,7 @@ export interface KastleExtension {
     txJson: string,
     scripts?: unknown,
   ) => Promise<string | { txJson?: string; signedTx?: string; tx?: string }>
+  signMessage: (message: string) => Promise<string>
   on: (event: string, handler: (...args: unknown[]) => void) => void
   off?: (event: string, handler: (...args: unknown[]) => void) => void
 }

@@ -110,7 +110,7 @@ describe('NamingScreen', () => {
       '/api/wallets/register',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ address: USER_ADDRESS, name: 'Amina', kind: 'user' }),
+        body: JSON.stringify({ name: 'Amina', kind: 'user' }),
       }),
     )
   })

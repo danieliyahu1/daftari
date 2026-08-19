@@ -2,17 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import type { BookGroup } from '../../../shared/types'
 import { apiClient, ApiClientError } from '../api/client'
+import { useAuth } from '../auth/AuthProvider'
 import { BackLink } from '../components/BackLink'
 import { EmptyState } from '../components/EmptyState'
 import { PayDialog } from '../components/PayDialog'
 import { logger } from '../logger'
+import { useRegistry } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletProvider'
 
 const NOT_A_GROUP = "This isn't a registered group."
+const NAME_FIRST_COPY = 'Name your wallet in the app before you can join.'
 
 export function ContributePage(): JSX.Element {
   const { code } = useParams<{ code: string }>()
   const wallet = useWallet()
+  const auth = useAuth()
+  const registry = useRegistry()
   const [group, setGroup] = useState<BookGroup | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +69,17 @@ export function ContributePage(): JSX.Element {
     )
   }
 
+  if (auth.status !== 'ready') {
+    return (
+      <div className="book" data-testid="contribute">
+        <BackLink to="/" label="Your chamas" />
+        <EmptyState title="Signing you in...">
+          <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle.'}</p>
+        </EmptyState>
+      </div>
+    )
+  }
+
   return (
     <div className="book" data-testid="contribute">
       <BackLink to="/" label="Your chamas" />
@@ -89,20 +105,25 @@ export function ContributePage(): JSX.Element {
             {group.name}
           </span>
           <span className="kind-mark">{group.kind === 'group' ? 'group' : 'person'}</span>
-          <button
-            className="button button-primary button-full"
-            onClick={() => setPaying(true)}
-            data-testid="contribute-button"
-          >
-            Pay into {group.name}
-          </button>
+          {registry.status === 'named' ? (
+            <button
+              className="button button-primary button-full"
+              onClick={() => setPaying(true)}
+              data-testid="contribute-button"
+            >
+              Pay into {group.name}
+            </button>
+          ) : (
+            <p className="empty-sub" data-testid="contribute-name-first">
+              {NAME_FIRST_COPY}
+            </p>
+          )}
         </section>
       ) : null}
 
       {paying && wallet.address && (
         <PayDialog
           groupCode={groupCode}
-          userAddress={wallet.address}
           onClose={() => setPaying(false)}
           onRecorded={handleRecorded}
         />

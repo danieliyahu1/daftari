@@ -9,7 +9,13 @@ export interface RouteResult {
   body: unknown;
 }
 
-export type ErrorKind = "invalid" | "conflict" | "policy" | "network" | "upstream";
+export type ErrorKind =
+  | "invalid"
+  | "conflict"
+  | "policy"
+  | "network"
+  | "upstream"
+  | "unauthorized";
 
 const DEFAULT_STATUS: Record<ErrorKind, number> = {
   invalid: 422,
@@ -17,6 +23,7 @@ const DEFAULT_STATUS: Record<ErrorKind, number> = {
   policy: 422,
   network: 503,
   upstream: 502,
+  unauthorized: 401,
 };
 
 export class AppError extends Error {

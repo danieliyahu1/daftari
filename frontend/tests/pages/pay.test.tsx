@@ -4,7 +4,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ToastProvider } from '../../src/components/Toaster'
 import { BookPage } from '../../src/pages/BookPage'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
-import { bookStub as bookStubBody, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle } from '../helpers'
+import { bookStub as bookStubBody, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
+
+vi.mock('../../src/auth/AuthProvider', () => ({
+  useAuth: () => ({ status: 'ready', error: null, address: USER_ADDRESS, signIn: vi.fn(async () => {}) }),
+}))
 
 const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`

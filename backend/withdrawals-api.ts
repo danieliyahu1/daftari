@@ -69,7 +69,10 @@ function resolveFundAndMember(
   }
 }
 
-function parseWithdrawalAmounts(input: WithdrawalInput): {
+function parseWithdrawalAmounts(
+  requester: string,
+  input: WithdrawalInput,
+): {
   fundAddress: string;
   recipientAddress: string;
   amountSompi: string;
@@ -77,6 +80,10 @@ function parseWithdrawalAmounts(input: WithdrawalInput): {
   const fundAddress = requireAddress(input.fund_address, "fund_address");
   const recipientAddress = requireAddress(input.recipient_address, "recipient_address");
   const amountSompi = requirePositiveSompi(input.amount_sompi);
+  if (fundAddress !== requester) {
+    logger.warn("withdrawal refused", { fundAddress, requester, reason: "not-the-fund" });
+    throw new AppError("unauthorized", "Only the fund can withdraw.");
+  }
   return { fundAddress, recipientAddress, amountSompi };
 }
 
@@ -136,11 +143,12 @@ async function fetchAuthoritativeInputAddresses(
 export async function handlePrepareWithdrawal(
   store: MembershipStore,
   wallets: WalletStore,
+  requester: string,
   input: WithdrawalInput,
   chain: PaymentChain = new KaspaClient(),
 ): Promise<RouteResult> {
   try {
-    const { fundAddress, recipientAddress, amountSompi } = parseWithdrawalAmounts(input);
+    const { fundAddress, recipientAddress, amountSompi } = parseWithdrawalAmounts(requester, input);
     resolveFundAndMember(fundAddress, recipientAddress, store, wallets);
     const feerate = await feeRate(chain);
     const utxos: UtxoResponse[] = await chain.getUtxos(fundAddress);
@@ -173,12 +181,13 @@ export async function handlePrepareWithdrawal(
 export async function handleFinalizeWithdrawal(
   store: MembershipStore,
   wallets: WalletStore,
+  requester: string,
   input: FinalizeWithdrawalInput,
   chain: PaymentChain = new KaspaClient(),
   policy: ConfirmPolicy = DEFAULT_CONFIRM_POLICY,
 ): Promise<RouteResult> {
   try {
-    const { fundAddress, recipientAddress, amountSompi } = parseWithdrawalAmounts(input);
+    const { fundAddress, recipientAddress, amountSompi } = parseWithdrawalAmounts(requester, input);
     resolveFundAndMember(fundAddress, recipientAddress, store, wallets);
     const signed = parseSignedTransaction(requiredStr(input.signed, "signed"));
     const inputAmounts = await fetchAuthoritativeAmounts(chain, signed.inputs);

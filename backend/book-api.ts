@@ -237,7 +237,7 @@ export async function handleGetBook(
   chain: BookChain = new KaspaClient(),
   wallets: BookWalletResolver = NO_WALLETS,
   memberships: BookMembershipResolver = NO_MEMBERSHIPS,
-  requester?: unknown,
+  requester?: string,
 ): Promise<RouteResult> {
   try {
     const address = requireCode(code);
@@ -247,7 +247,7 @@ export async function handleGetBook(
       logger.warn("book refused", { address, reason: "not-a-registered-group" });
       throw new AppError("invalid", UNREGISTERED_GROUP_COPY);
     }
-    if (requester !== address && !memberships.isMember(address, String(requester ?? ""))) {
+    if (requester !== address && !memberships.isMember(address, requester ?? "")) {
       logger.warn("book refused", { address, requester, reason: "not-a-member" });
       throw new AppError("policy", MEMBER_ONLY_COPY);
     }

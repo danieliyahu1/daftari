@@ -7,6 +7,10 @@ import { RegistryProvider } from '../../src/wallet/registry'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
 import { bookStub, CHAMA_ADDRESS, installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
+vi.mock('../../src/auth/AuthProvider', () => ({
+  useAuth: () => ({ status: 'ready', error: null, address: USER_ADDRESS, signIn: vi.fn(async () => {}) }),
+}))
+
 const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
 const EMPTY_BOOK_COPY = 'No payments yet. The book starts with the first payment in.'
 const GROUP_BOOK = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`

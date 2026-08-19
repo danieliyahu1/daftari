@@ -4,7 +4,7 @@ import { UNREGISTERED_GROUP_COPY } from "./book-api";
 import type { TxModel } from "./kaspa-api-types";
 import { SqliteMembershipStore } from "./membership-store";
 import type { MembershipStore } from "./membership-store";
-import { handleAddMember, handleGetHome } from "./memberships-api";
+import { handleAddMember, handleGetHome, UNREGISTERED_MEMBER_COPY } from "./memberships-api";
 import { SqliteWalletStore } from "./wallet-store";
 import type { WalletStore } from "./wallet-store";
 
@@ -83,19 +83,6 @@ function makeChain(party: string | null = null): BookChain {
 }
 
 describe("handleGetHome", () => {
-  it("returns 400 when the user param is missing", () => {
-    const result = handleGetHome(store(), walletStore(), undefined);
-    expect(result.status).toBe(400);
-    expect(result.body).toEqual({
-      error: { kind: "invalid", message: expect.stringMatching(/user/) },
-    });
-  });
-
-  it("returns 400 when the user param is blank", () => {
-    const result = handleGetHome(store(), walletStore(), "   ");
-    expect(result.status).toBe(400);
-  });
-
   it("returns an empty person home for an unregistered wallet", () => {
     const result = handleGetHome(store(), walletStore(), MEMBER);
     expect(result.status).toBe(200);
@@ -163,13 +150,27 @@ describe("handleAddMember", () => {
   it("returns 400 when either address is missing", async () => {
     const s = store();
     const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
-    expect((await handleAddMember(s, w, {}, makeChain(MEMBER))).status).toBe(400);
-    expect((await handleAddMember(s, w, { group_address: GROUP }, makeChain(MEMBER))).status).toBe(400);
-    expect((await handleAddMember(s, w, { member_address: MEMBER }, makeChain(MEMBER))).status).toBe(400);
+    expect((await handleAddMember(s, w, GROUP, {}, makeChain(MEMBER))).status).toBe(400);
+    expect((await handleAddMember(s, w, GROUP, { group_address: GROUP }, makeChain(MEMBER))).status).toBe(400);
+    expect((await handleAddMember(s, w, GROUP, { member_address: MEMBER }, makeChain(MEMBER))).status).toBe(400);
+  });
+
+  it("refuses a requester who is not the group", async () => {
+    const s = store();
+    const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
+    const result = await handleAddMember(
+      s,
+      w,
+      MEMBER,
+      { group_address: GROUP, member_address: OTHER },
+      makeChain(MEMBER),
+    );
+    expect(result.status).toBe(401);
+    expect(s.isMember(GROUP, OTHER)).toBe(false);
   });
 
   it("rejects a malformed address", async () => {
-    const result = await handleAddMember(store(), walletStore(), {
+    const result = await handleAddMember(store(), walletStore(), GROUP, {
       group_address: INVALID,
       member_address: MEMBER,
     }, makeChain(MEMBER));
@@ -178,7 +179,7 @@ describe("handleAddMember", () => {
   });
 
   it("refuses when the group is not a registered group", async () => {
-    const result = await handleAddMember(store(), walletStore(), {
+    const result = await handleAddMember(store(), walletStore(), GROUP, {
       group_address: GROUP,
       member_address: MEMBER,
     }, makeChain(MEMBER));
@@ -190,8 +191,11 @@ describe("handleAddMember", () => {
 
   it("refuses a member who has not transacted with the group", async () => {
     const s = store();
-    const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
-    const result = await handleAddMember(s, w, {
+    const w = walletStore([
+      { address: GROUP, name: "Plot", kind: "group" },
+      { address: MEMBER, name: "Amina", kind: "user" },
+    ]);
+    const result = await handleAddMember(s, w, GROUP, {
       group_address: GROUP,
       member_address: MEMBER,
     }, makeChain(null));
@@ -202,10 +206,27 @@ describe("handleAddMember", () => {
     expect(s.isMember(GROUP, MEMBER)).toBe(false);
   });
 
-  it("adds a member who has transacted with the group", async () => {
+  it("refuses a member who is not registered in the app", async () => {
     const s = store();
     const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
-    const result = await handleAddMember(s, w, {
+    const result = await handleAddMember(s, w, GROUP, {
+      group_address: GROUP,
+      member_address: MEMBER,
+    }, makeChain(MEMBER));
+    expect(result.status).toBe(422);
+    expect(result.body).toEqual({
+      error: { kind: "invalid", message: UNREGISTERED_MEMBER_COPY },
+    });
+    expect(s.isMember(GROUP, MEMBER)).toBe(false);
+  });
+
+  it("adds a member who has transacted with the group", async () => {
+    const s = store();
+    const w = walletStore([
+      { address: GROUP, name: "Plot", kind: "group" },
+      { address: MEMBER, name: "Amina", kind: "user" },
+    ]);
+    const result = await handleAddMember(s, w, GROUP, {
       group_address: GROUP,
       member_address: MEMBER,
     }, makeChain(MEMBER));
@@ -218,9 +239,12 @@ describe("handleAddMember", () => {
 
   it("is idempotent when the person is already a member", async () => {
     const s = store();
-    const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
-    await handleAddMember(s, w, { group_address: GROUP, member_address: MEMBER }, makeChain(MEMBER));
-    const result = await handleAddMember(s, w, { group_address: GROUP, member_address: MEMBER }, makeChain(MEMBER));
+    const w = walletStore([
+      { address: GROUP, name: "Plot", kind: "group" },
+      { address: MEMBER, name: "Amina", kind: "user" },
+    ]);
+    await handleAddMember(s, w, GROUP, { group_address: GROUP, member_address: MEMBER }, makeChain(MEMBER));
+    const result = await handleAddMember(s, w, GROUP, { group_address: GROUP, member_address: MEMBER }, makeChain(MEMBER));
     expect(result.status).toBe(201);
     expect(s.listForChama(GROUP)).toHaveLength(1);
   });
@@ -228,7 +252,7 @@ describe("handleAddMember", () => {
   it("refuses a group adding itself as a member", async () => {
     const s = store();
     const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
-    const result = await handleAddMember(s, w, {
+    const result = await handleAddMember(s, w, GROUP, {
       group_address: GROUP,
       member_address: GROUP,
     }, makeChain(GROUP));
@@ -242,7 +266,7 @@ describe("handleAddMember", () => {
       { address: GROUP, name: "Plot", kind: "group" },
       { address: OTHER, name: "Kamau Traders", kind: "group" },
     ]);
-    const result = await handleAddMember(s, w, {
+    const result = await handleAddMember(s, w, GROUP, {
       group_address: GROUP,
       member_address: OTHER,
     }, makeChain(OTHER));
@@ -251,14 +275,17 @@ describe("handleAddMember", () => {
   });
 
   it("surfaces an upstream error", async () => {
-    const w = walletStore([{ address: GROUP, name: "Plot", kind: "group" }]);
+    const w = walletStore([
+      { address: GROUP, name: "Plot", kind: "group" },
+      { address: MEMBER, name: "Amina", kind: "user" },
+    ]);
     const chain: BookChain = {
       getBalance: async () => ({ address: GROUP, balance: 0 }),
       getFullTransactions: vi.fn(async () => {
         throw new Error("upstream down");
       }),
     };
-    const result = await handleAddMember(store(), w, {
+    const result = await handleAddMember(store(), w, GROUP, {
       group_address: GROUP,
       member_address: MEMBER,
     }, chain);
