@@ -76,14 +76,14 @@ export function parseSignInMessage(message: string): ParsedMessage | null {
   return { address, origin, nonce };
 }
 
-export function handleCreateChallenge(
+export async function handleCreateChallenge(
   store: AuthStore,
   input: ChallengeInput,
   config: AuthConfig,
-): RouteResult {
+): Promise<RouteResult> {
   try {
     const address = validAddress(input.address, "address");
-    const record = store.create(address);
+    const record = await store.create(address);
     const message = buildSignInMessage({
       address,
       origin: config.origin,
@@ -119,7 +119,7 @@ export async function handleCreateSession(
       });
       throw new AppError("unauthorized", "The signed message is not for this app");
     }
-    const record = store.consume(parsed.nonce, parsed.address);
+    const record = await store.consume(parsed.nonce, parsed.address);
     if (record === null) {
       logger.warn("auth session refused", { reason: "nonce-rejected" });
       throw new AppError("unauthorized", "This sign-in attempt is no longer valid. Try again.");

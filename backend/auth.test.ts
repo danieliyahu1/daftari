@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { schnorr } from "@noble/curves/secp256k1.js";
-import { SqliteAuthStore } from "./auth-store";
+import { FakeAuthStore } from "./test-stores";
 import {
   buildSignInMessage,
   handleCreateChallenge,
@@ -25,10 +25,10 @@ function signMessage(message: string, priv: Uint8Array): string {
   return [...schnorr.sign(hash, priv)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function sessionBody() {
-  const store = new SqliteAuthStore();
+async function sessionBody() {
+  const store = new FakeAuthStore();
   const address = addressFor(PRIV);
-  const challenge = handleCreateChallenge(store, { address }, { origin: ORIGIN, secret: SECRET });
+  const challenge = await handleCreateChallenge(store, { address }, { origin: ORIGIN, secret: SECRET });
   const { message } = challenge.body as { message: string; nonce: string };
   const signature = signMessage(message, PRIV);
   return { store, address, message, signature };
@@ -66,7 +66,7 @@ describe("buildSignInMessage / parseSignInMessage", () => {
 
 describe("handleCreateSession", () => {
   it("issues a token for a valid signature", async () => {
-    const { store, address, message, signature } = sessionBody();
+    const { store, address, message, signature } = await sessionBody();
     const result = await handleCreateSession(
       store,
       { message, signature },
@@ -80,7 +80,7 @@ describe("handleCreateSession", () => {
   });
 
   it("rejects a replay of the same message", async () => {
-    const { store, message, signature } = sessionBody();
+    const { store, message, signature } = await sessionBody();
     await handleCreateSession(store, { message, signature }, { origin: ORIGIN, secret: SECRET });
     const second = await handleCreateSession(
       store,
@@ -92,7 +92,7 @@ describe("handleCreateSession", () => {
   });
 
   it("rejects a signature for the wrong message", async () => {
-    const { store, address, message } = sessionBody();
+    const { store, address, message } = await sessionBody();
     const other = buildSignInMessage({
       address,
       origin: ORIGIN,
@@ -110,7 +110,7 @@ describe("handleCreateSession", () => {
   });
 
   it("rejects a message from a different origin", async () => {
-    const { store, address, message, signature } = sessionBody();
+    const { store, address, message, signature } = await sessionBody();
     const result = await handleCreateSession(
       store,
       { message, signature },
@@ -120,3 +120,4 @@ describe("handleCreateSession", () => {
     store.close();
   });
 });
+

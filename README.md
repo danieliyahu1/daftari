@@ -8,7 +8,7 @@ In Daftari, a chama is a real Kaspa wallet. Members pool money into it by paying
 
 - **Every chama is its own Kaspa wallet** (a `group` wallet). Members are `user` wallets who pay into it on-chain.
 - **Money lives on the chain** — contributions and withdrawals are real Kaspa transactions built server-side, signed in the browser via the **Kastle** wallet extension, and broadcast to testnet-10.
-- **Social state lives in a local SQLite DB** — names, memberships, and sign-in challenges.
+- **Social state lives in a hosted Turso (libSQL) database** — names, memberships, and sign-in challenges.
 - **Membership is self-enforcing**: a wallet can only join a chama after it has actually transacted with the chama's wallet.
 
 ## Authentication
@@ -24,7 +24,7 @@ This proves the client truly owns the claimed wallet, prevents replay (one-time 
 
 ## Tech stack
 
-- **Backend**: Node.js + TypeScript, Express 5, `node:sqlite`
+- **Backend**: Node.js + TypeScript, Express 5, Turso (libSQL via `@libsql/client`)
 - **Frontend**: React 18 + Vite, React Router
 - **Crypto**: `@noble/hashes`, `@noble/curves` (BLAKE2b + BIP340 Schnorr), `jose` (JWT)
 - **Wallet**: [Kastle](https://kastle.cc) browser extension
@@ -34,7 +34,7 @@ This proves the client truly owns the claimed wallet, prevents replay (one-time 
 
 ### Prerequisites
 
-- Node.js (the backend uses `node:sqlite`, so use a recent LTS that ships it)
+- Node.js (any modern LTS)
 - The **Kastle** browser extension, on testnet-10
 
 ### Install
@@ -58,11 +58,12 @@ Open the frontend, connect your Kastle wallet, and confirm the sign-in message.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `3001` | API port |
-| `DAFTARI_DB` | `./daftari.db` | SQLite database file |
+| `DAFTARI_TURSO_URL` | _(required)_ | Turso database client URL, e.g. `libsql://daftari-<org>.turso.io` |
+| `DAFTARI_TURSO_AUTH_TOKEN` | _(required)_ | Per-database Turso auth token (`turso db tokens create daftari`) |
 | `DAFTARI_AUTH_SECRET` | dev-only fallback | HMAC secret for signing JWTs. **Set this in production.** |
 | `DAFTARI_ORIGIN` | `http://localhost:5173` | The origin embedded in sign-in messages (must match where the frontend is served) |
 
-> **Note:** `DAFTARI_AUTH_SECRET` defaults to an insecure development value and logs a warning. Always set it in production.
+> **Note:** `DAFTARI_AUTH_SECRET` defaults to an insecure development value and logs a warning. Always set it in production. A `.env` file is loaded via `dotenv` in development; copy `.env.example` and fill in the values.
 
 ## Scripts
 

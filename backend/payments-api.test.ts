@@ -14,7 +14,7 @@ import {
   waitForAcceptance,
 } from "./payments-api";
 import type { PaymentChain } from "./payments-api";
-import { SqliteWalletStore } from "./wallet-store";
+import { FakeWalletStore } from "./test-stores";
 import { buildTransfer } from "./tx-builder";
 
 const USER = "kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl";
@@ -253,7 +253,7 @@ describe("handlePreparePayment", () => {
 
   it("refuses an unregistered payer when a wallet store is provided", async () => {
     const { chain, getUtxos } = makeChain();
-    const wallets = new SqliteWalletStore();
+    const wallets = new FakeWalletStore();
     const result = await handlePreparePayment(USER, prepareInput(), chain, wallets);
     expect(result.status).toBe(422);
     expect(result.body).toEqual({
@@ -265,8 +265,8 @@ describe("handlePreparePayment", () => {
 
   it("refuses a registered group-kind payer when a wallet store is provided", async () => {
     const { chain, getUtxos } = makeChain();
-    const wallets = new SqliteWalletStore();
-    wallets.register(GROUP, "Plot", "group");
+    const wallets = new FakeWalletStore();
+    await wallets.register(GROUP, "Plot", "group");
     const result = await handlePreparePayment(USER, prepareInput(), chain, wallets);
     expect(result.status).toBe(422);
     expect(result.body).toEqual({
@@ -279,8 +279,8 @@ describe("handlePreparePayment", () => {
   it("allows a registered user payer when a wallet store is provided", async () => {
     const { chain, getUtxos } = makeChain();
     getUtxos.mockResolvedValue([utxo("a", 0, "1000000000")]);
-    const wallets = new SqliteWalletStore();
-    wallets.register(USER, "Amina", "user");
+    const wallets = new FakeWalletStore();
+    await wallets.register(USER, "Amina", "user");
     const result = await handlePreparePayment(USER, prepareInput(), chain, wallets);
     expect(result.status).toBe(200);
     expect(result.body).toEqual({ signing_template: expect.any(String) });
@@ -539,7 +539,7 @@ describe("handleFinalizePayment", () => {
     expect(result.body).toEqual({
       status: "pending",
       txid: TXID,
-      explorer_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+      explorer_url: `https://explorer.kaspa.org/tn10/txs/${TXID}`,
     });
   });
 

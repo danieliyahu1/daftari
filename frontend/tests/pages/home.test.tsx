@@ -117,7 +117,7 @@ describe('HomePage', () => {
               other_kind: 'user',
               date: 1_700_000_000_000,
               txid: 'ab'.repeat(32),
-              proof_url: `https://explorer-tn10.kaspa.org/txs/${'ab'.repeat(32)}`,
+              proof_url: `https://explorer.kaspa.org/tn10/txs/${'ab'.repeat(32)}`,
               other_is_member: true,
             },
           ],

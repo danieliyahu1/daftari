@@ -352,7 +352,7 @@ export async function handlePreparePayment(
     const chamaAddress = requireAddress(input.chama_address, "chama_address");
     const amountSompi = requirePositiveSompi(input.amount_sompi);
     if (wallets !== undefined) {
-      const payer = wallets.get(userAddress);
+      const payer = await wallets.get(userAddress);
       if (payer === null || payer.kind !== "user") {
         logger.warn("payment prepare refused", {
           userAddress,

@@ -40,13 +40,13 @@ export interface FinalizeWithdrawalInput extends WithdrawalInput {
   signed?: unknown;
 }
 
-function resolveFundAndMember(
+async function resolveFundAndMember(
   fundAddress: string,
   recipientAddress: string,
   store: MembershipStore,
   wallets: WalletStore,
-): void {
-  const fund = wallets.get(fundAddress);
+): Promise<void> {
+  const fund = await wallets.get(fundAddress);
   if (fund === null || fund.kind !== "group") {
     logger.warn("withdrawal refused", {
       fundAddress,
@@ -59,7 +59,7 @@ function resolveFundAndMember(
     logger.warn("withdrawal refused", { fundAddress, reason: "self-recipient" });
     throw new AppError("invalid", "A fund cannot send money to itself.");
   }
-  if (!store.isMember(fundAddress, recipientAddress)) {
+  if (!(await store.isMember(fundAddress, recipientAddress))) {
     logger.warn("withdrawal refused", {
       fundAddress,
       recipientAddress,
@@ -149,7 +149,7 @@ export async function handlePrepareWithdrawal(
 ): Promise<RouteResult> {
   try {
     const { fundAddress, recipientAddress, amountSompi } = parseWithdrawalAmounts(requester, input);
-    resolveFundAndMember(fundAddress, recipientAddress, store, wallets);
+    await resolveFundAndMember(fundAddress, recipientAddress, store, wallets);
     const feerate = await feeRate(chain);
     const utxos: UtxoResponse[] = await chain.getUtxos(fundAddress);
     const built = buildTransfer({
@@ -188,7 +188,7 @@ export async function handleFinalizeWithdrawal(
 ): Promise<RouteResult> {
   try {
     const { fundAddress, recipientAddress, amountSompi } = parseWithdrawalAmounts(requester, input);
-    resolveFundAndMember(fundAddress, recipientAddress, store, wallets);
+    await resolveFundAndMember(fundAddress, recipientAddress, store, wallets);
     const signed = parseSignedTransaction(requiredStr(input.signed, "signed"));
     const inputAmounts = await fetchAuthoritativeAmounts(chain, signed.inputs);
     const inputAddresses = await fetchAuthoritativeInputAddresses(chain, signed.inputs);

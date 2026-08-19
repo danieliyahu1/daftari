@@ -11,21 +11,21 @@ import type { WalletStore } from "./wallet-store";
 export const UNREGISTERED_MEMBER_COPY =
   "Only registered members can join. Ask them to name their wallet in the app first.";
 
-export function handleGetHome(
+export async function handleGetHome(
   store: MembershipStore,
   wallets: WalletStore,
   requester: string,
-): RouteResult {
+): Promise<RouteResult> {
   try {
     const userAddress = requester;
-    const identity = wallets.get(userAddress);
+    const identity = await wallets.get(userAddress);
     if (identity === null) {
       logger.info("home for an unregistered wallet", { userAddress });
       return { status: 200, body: { identity: null, members: [], chamas: [] } };
     }
     if (identity.kind === "group") {
-      const memberships = store.listForChama(userAddress);
-      const resolved = wallets.resolveMany(memberships.map((m) => m.user_address));
+      const memberships = await store.listForChama(userAddress);
+      const resolved = await wallets.resolveMany(memberships.map((m) => m.user_address));
       const byAddress = new Map(resolved.map((wallet) => [wallet.address, wallet]));
       const members = memberships.map((membership) => {
         const wallet = byAddress.get(membership.user_address);
@@ -36,8 +36,8 @@ export function handleGetHome(
       logger.info("group home served", { chamaAddress: userAddress, members: members.length });
       return { status: 200, body: { identity, members, chamas: [] } };
     }
-    const memberships = store.listForUser(userAddress);
-    const resolved = wallets.resolveMany(memberships.map((m) => m.chama_address));
+    const memberships = await store.listForUser(userAddress);
+    const resolved = await wallets.resolveMany(memberships.map((m) => m.chama_address));
     const byAddress = new Map(resolved.map((wallet) => [wallet.address, wallet]));
     const chamas = memberships
       .map((membership) => byAddress.get(membership.chama_address))
@@ -73,7 +73,7 @@ export async function handleAddMember(
       logger.warn("member add refused", { chamaAddress, requester, reason: "not-the-group" });
       throw new AppError("unauthorized", "Only the group can add a member.");
     }
-    const group = wallets.get(chamaAddress);
+    const group = await wallets.get(chamaAddress);
     if (group === null || group.kind !== "group") {
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "not-a-registered-group" });
       throw new AppError("invalid", UNREGISTERED_GROUP_COPY);
@@ -82,7 +82,7 @@ export async function handleAddMember(
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "self-add" });
       throw new AppError("invalid", "A chama cannot add itself as a member.");
     }
-    const member = wallets.get(memberAddress);
+    const member = await wallets.get(memberAddress);
     if (member === null) {
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "member-unregistered" });
       throw new AppError("invalid", UNREGISTERED_MEMBER_COPY);
@@ -95,7 +95,7 @@ export async function handleAddMember(
       logger.warn("member add refused", { chamaAddress, memberAddress, reason: "not-a-counterparty" });
       throw new AppError("invalid", "This wallet hasn't paid into the chama.");
     }
-    const membership = store.addMember(chamaAddress, memberAddress);
+    const membership = await store.addMember(chamaAddress, memberAddress);
     logger.info("member added to chama", { chamaAddress, memberAddress });
     return { status: 201, body: { membership } };
   } catch (err) {

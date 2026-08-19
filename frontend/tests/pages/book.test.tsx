@@ -13,7 +13,7 @@ const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`
 
 const TXID = 'ab'.repeat(32)
-const PROOF = `https://explorer-tn10.kaspa.org/txs/${TXID}`
+const PROOF = `https://explorer.kaspa.org/tn10/txs/${TXID}`
 
 function makeRow(overrides: Record<string, unknown> = {}) {
   return {

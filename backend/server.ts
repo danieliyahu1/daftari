@@ -1,18 +1,29 @@
+import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app";
-import { SqliteAuthStore } from "./auth-store";
+import { TursoAuthStore } from "./auth-store";
 import { logger } from "./logger";
-import { SqliteMembershipStore } from "./membership-store";
-import { SqliteWalletStore } from "./wallet-store";
+import { TursoMembershipStore } from "./membership-store";
+import { TursoWalletStore } from "./wallet-store";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const dbFilename = process.env.DAFTARI_DB ?? path.join(dirname, "..", "daftari.db");
+const tursoUrl = process.env.DAFTARI_TURSO_URL;
+const tursoAuthToken = process.env.DAFTARI_TURSO_AUTH_TOKEN;
 
-const walletStore = new SqliteWalletStore({ filename: dbFilename });
-const store = new SqliteMembershipStore({ filename: dbFilename });
-const authStore = new SqliteAuthStore({ filename: dbFilename });
+if (tursoUrl === undefined) {
+  logger.error("DAFTARI_TURSO_URL is not set");
+  process.exit(1);
+}
+if (tursoAuthToken === undefined) {
+  logger.error("DAFTARI_TURSO_AUTH_TOKEN is not set");
+  process.exit(1);
+}
+
+const walletStore = new TursoWalletStore({ url: tursoUrl, authToken: tursoAuthToken });
+const store = new TursoMembershipStore({ url: tursoUrl, authToken: tursoAuthToken });
+const authStore = new TursoAuthStore({ url: tursoUrl, authToken: tursoAuthToken });
 
 const authSecretRaw =
   process.env.DAFTARI_AUTH_SECRET ??
@@ -44,11 +55,27 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-const port = Number(process.env.PORT ?? 3001);
-const server = app.listen(port, () => {
-  logger.info(`Daftari API listening on http://localhost:${port}`);
-});
-server.on("error", (err) => {
-  logger.error("server failed to start", { message: err.message, stack: err.stack });
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  try {
+    await walletStore.init();
+    await store.init();
+    await authStore.init();
+  } catch (err) {
+    logger.error("failed to initialize stores", {
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    process.exit(1);
+  }
+
+  const port = Number(process.env.PORT ?? 3001);
+  const server = app.listen(port, () => {
+    logger.info(`Daftari API listening on http://localhost:${port}`);
+  });
+  server.on("error", (err) => {
+    logger.error("server failed to start", { message: err.message, stack: err.stack });
+    process.exit(1);
+  });
+}
+
+void main();

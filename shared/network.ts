@@ -6,7 +6,7 @@ const NETWORKS: Record<"testnet-10", NetworkConfig> = {
     apiBaseUrl: "https://api-tn10.kaspa.org",
     addressPrefix: "kaspatest:",
     explorer: {
-      primary: "https://explorer-tn10.kaspa.org",
+      primary: "https://explorer.kaspa.org/tn10",
     },
   },
 };

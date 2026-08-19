@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { handleRegisterWallet, handleResolveWallets, NAME_ERROR_COPY } from "./wallets-api";
-import { SqliteWalletStore } from "./wallet-store";
 import type { WalletStore } from "./wallet-store";
+import { FakeWalletStore } from "./test-stores";
 
 const USER = "kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl";
 const VALID_CODE = "kaspatest:qpchy8753068rt2szvwxc0yr0kl38sjxqs0cg7xe97y6tzxh5h5wx09rle5a7";
@@ -9,7 +9,7 @@ const VALID_CODE = "kaspatest:qpchy8753068rt2szvwxc0yr0kl38sjxqs0cg7xe97y6tzxh5h
 const stores: WalletStore[] = [];
 
 function store(): WalletStore {
-  const s = new SqliteWalletStore({ now: () => 1_000 });
+  const s = new FakeWalletStore({ now: () => 1_000 });
   stores.push(s);
   return s;
 }
@@ -28,8 +28,8 @@ function register(
 }
 
 describe("handleRegisterWallet", () => {
-  it("registers a person wallet with a 201 and the stored wallet", () => {
-    const result = register(store(), USER, {
+  it("registers a person wallet with a 201 and the stored wallet", async () => {
+    const result = await register(store(), USER, {
       name: "  Amina  ",
       kind: "user",
     });
@@ -40,8 +40,8 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("registers a group wallet", () => {
-    const result = register(store(), VALID_CODE, {
+  it("registers a group wallet", async () => {
+    const result = await register(store(), VALID_CODE, {
       name: "the plot chama",
       kind: "group",
     });
@@ -57,11 +57,11 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("returns 409 conflict when the wallet is already named", () => {
+  it("returns 409 conflict when the wallet is already named", async () => {
     const s = store();
-    register(s, USER, { name: "Amina", kind: "user" });
+    await register(s, USER, { name: "Amina", kind: "user" });
 
-    const result = register(s, USER, { name: "Bob", kind: "group" });
+    const result = await register(s, USER, { name: "Bob", kind: "group" });
 
     expect(result.status).toBe(409);
     expect(result.body).toEqual({
@@ -69,12 +69,12 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("does not overwrite the original name on a conflict", () => {
+  it("does not overwrite the original name on a conflict", async () => {
     const s = store();
-    register(s, USER, { name: "Amina", kind: "user" });
-    register(s, USER, { name: "Bob", kind: "group" });
+    await register(s, USER, { name: "Amina", kind: "user" });
+    await register(s, USER, { name: "Bob", kind: "group" });
 
-    expect(s.get(USER)).toEqual({
+    expect(await s.get(USER)).toEqual({
       address: USER,
       name: "Amina",
       kind: "user",
@@ -82,16 +82,16 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("returns the length copy for a name shorter than 2 characters", () => {
-    const result = register(store(), USER, { name: "a", kind: "user" });
+  it("returns the length copy for a name shorter than 2 characters", async () => {
+    const result = await register(store(), USER, { name: "a", kind: "user" });
     expect(result.status).toBe(422);
     expect(result.body).toEqual({
       error: { kind: "invalid", message: NAME_ERROR_COPY },
     });
   });
 
-  it("returns the length copy for a name longer than 20 characters", () => {
-    const result = register(store(), USER, {
+  it("returns the length copy for a name longer than 20 characters", async () => {
+    const result = await register(store(), USER, {
       name: "a".repeat(21),
       kind: "user",
     });
@@ -101,16 +101,16 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("returns the length copy for a whitespace-only name", () => {
-    const result = register(store(), USER, { name: "   ", kind: "user" });
+  it("returns the length copy for a whitespace-only name", async () => {
+    const result = await register(store(), USER, { name: "   ", kind: "user" });
     expect(result.status).toBe(422);
     expect(result.body).toEqual({
       error: { kind: "invalid", message: NAME_ERROR_COPY },
     });
   });
 
-  it("returns the length copy for a name with control characters", () => {
-    const result = register(store(), USER, {
+  it("returns the length copy for a name with control characters", async () => {
+    const result = await register(store(), USER, {
       name: "Am\nina",
       kind: "user",
     });
@@ -120,16 +120,16 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("returns 400 when the name is missing", () => {
-    const result = register(store(), USER, { kind: "user" });
+  it("returns 400 when the name is missing", async () => {
+    const result = await register(store(), USER, { kind: "user" });
     expect(result.status).toBe(400);
     expect(result.body).toMatchObject({
       error: { kind: "invalid", message: expect.stringMatching(/name/) },
     });
   });
 
-  it("returns 422 for an unknown kind", () => {
-    const result = register(store(), USER, {
+  it("returns 422 for an unknown kind", async () => {
+    const result = await register(store(), USER, {
       name: "Amina",
       kind: "robot",
     });
@@ -139,21 +139,21 @@ describe("handleRegisterWallet", () => {
     });
   });
 
-  it("does not store a rejected registration", () => {
+  it("does not store a rejected registration", async () => {
     const s = store();
-    register(s, USER, { name: "a", kind: "user" });
+    await register(s, USER, { name: "a", kind: "user" });
 
-    expect(s.get(USER)).toBeNull();
+    expect(await s.get(USER)).toBeNull();
   });
 });
 
 describe("handleResolveWallets", () => {
-  it("resolves a batch of addresses in one call", () => {
+  it("resolves a batch of addresses in one call", async () => {
     const s = store();
-    register(s, USER, { name: "Amina", kind: "user" });
-    register(s, VALID_CODE, { name: "the plot chama", kind: "group" });
+    await register(s, USER, { name: "Amina", kind: "user" });
+    await register(s, VALID_CODE, { name: "the plot chama", kind: "group" });
 
-    const result = handleResolveWallets(s, `${USER},${VALID_CODE}`);
+    const result = await handleResolveWallets(s, `${USER},${VALID_CODE}`);
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
@@ -164,11 +164,11 @@ describe("handleResolveWallets", () => {
     });
   });
 
-  it("omits addresses that are not registered", () => {
+  it("omits addresses that are not registered", async () => {
     const s = store();
-    register(s, USER, { name: "Amina", kind: "user" });
+    await register(s, USER, { name: "Amina", kind: "user" });
 
-    const result = handleResolveWallets(s, `${USER},${VALID_CODE}`);
+    const result = await handleResolveWallets(s, `${USER},${VALID_CODE}`);
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
@@ -176,23 +176,23 @@ describe("handleResolveWallets", () => {
     });
   });
 
-  it("returns an empty wallet list for an empty input", () => {
-    const result = handleResolveWallets(store(), undefined);
+  it("returns an empty wallet list for an empty input", async () => {
+    const result = await handleResolveWallets(store(), undefined);
     expect(result.status).toBe(200);
     expect(result.body).toEqual({ wallets: [] });
   });
 
-  it("returns an empty wallet list for a blank input", () => {
-    const result = handleResolveWallets(store(), "  ,  ");
+  it("returns an empty wallet list for a blank input", async () => {
+    const result = await handleResolveWallets(store(), "  ,  ");
     expect(result.status).toBe(200);
     expect(result.body).toEqual({ wallets: [] });
   });
 
-  it("accepts a repeated query param as an array", () => {
+  it("accepts a repeated query param as an array", async () => {
     const s = store();
-    register(s, USER, { name: "Amina", kind: "user" });
+    await register(s, USER, { name: "Amina", kind: "user" });
 
-    const result = handleResolveWallets(s, [USER, VALID_CODE]);
+    const result = await handleResolveWallets(s, [USER, VALID_CODE]);
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({

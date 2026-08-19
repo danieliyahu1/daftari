@@ -6,10 +6,9 @@ import type {
   TxModel,
   UtxoResponse,
 } from "./kaspa-api-types";
-import { SqliteMembershipStore } from "./membership-store";
 import type { MembershipStore } from "./membership-store";
-import { SqliteWalletStore } from "./wallet-store";
 import type { WalletStore } from "./wallet-store";
+import { FakeMembershipStore, FakeWalletStore } from "./test-stores";
 import { buildTransfer } from "./tx-builder";
 import {
   handleFinalizeWithdrawal,
@@ -44,17 +43,17 @@ const AMOUNT = "500000000";
 const stores: MembershipStore[] = [];
 const wallets: WalletStore[] = [];
 
-function membershipStore(entries: Array<[string, string]> = []): MembershipStore {
-  const s = new SqliteMembershipStore({ now: () => 1_000 });
+async function membershipStore(entries: Array<[string, string]> = []): Promise<MembershipStore> {
+  const s = new FakeMembershipStore({ now: () => 1_000 });
   stores.push(s);
-  for (const [chama, member] of entries) s.addMember(chama, member);
+  for (const [chama, member] of entries) await s.addMember(chama, member);
   return s;
 }
 
-function walletStore(registered: Array<{ address: string; name: string; kind: "user" | "group" }> = []): WalletStore {
-  const w = new SqliteWalletStore({ now: () => 1_000 });
+async function walletStore(registered: Array<{ address: string; name: string; kind: "user" | "group" }> = []): Promise<WalletStore> {
+  const w = new FakeWalletStore({ now: () => 1_000 });
   wallets.push(w);
-  for (const entry of registered) w.register(entry.address, entry.name, entry.kind);
+  for (const entry of registered) await w.register(entry.address, entry.name, entry.kind);
   return w;
 }
 
@@ -172,10 +171,10 @@ function makeChain(overrides: Partial<PaymentChain> = {}): {
   };
 }
 
-function defaultStores(): { store: MembershipStore; wallets: WalletStore } {
+async function defaultStores(): Promise<{ store: MembershipStore; wallets: WalletStore }> {
   return {
-    store: membershipStore([[FUND, MEMBER]]),
-    wallets: walletStore([{ address: FUND, name: "Plot", kind: "group" }]),
+    store: await membershipStore([[FUND, MEMBER]]),
+    wallets: await walletStore([{ address: FUND, name: "Plot", kind: "group" }]),
   };
 }
 
@@ -209,7 +208,7 @@ function finalizeInput(overrides: {
 
 describe("handlePrepareWithdrawal", () => {
   it("returns 400 when fund_address is missing", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain } = makeChain();
     const result = await handlePrepareWithdrawal(
       store,
@@ -223,7 +222,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("returns 400 when recipient_address is missing", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain } = makeChain();
     const result = await handlePrepareWithdrawal(
       store,
@@ -237,7 +236,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("returns 422 validation for an address on another network", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain } = makeChain();
     const result = await handlePrepareWithdrawal(
       store,
@@ -251,7 +250,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("returns 422 validation for zero, negative, and non-numeric amounts", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain } = makeChain();
     for (const amount_sompi of ["0", "-1", "abc", "1.5"]) {
       const result = await handlePrepareWithdrawal(
@@ -267,8 +266,8 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("refuses a fund that is not a registered group", async () => {
-    const store = membershipStore();
-    const wallets = walletStore();
+    const store = await membershipStore();
+    const wallets = await walletStore();
     const { chain } = makeChain();
     const result = await handlePrepareWithdrawal(store, wallets, FUND, prepareInput(), chain);
     expect(result.status).toBe(422);
@@ -278,7 +277,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("refuses a recipient who is not a member", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain } = makeChain();
     const result = await handlePrepareWithdrawal(
       store,
@@ -294,7 +293,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("refuses a fund sending to itself", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain } = makeChain();
     const result = await handlePrepareWithdrawal(
       store,
@@ -308,7 +307,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("builds the template from the fund's UTXOs for a member recipient", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, getUtxos, getFeeEstimate } = makeChain();
     const utxos = [utxo("c", 0, "1000000000")];
     getUtxos.mockResolvedValue(utxos);
@@ -334,7 +333,7 @@ describe("handlePrepareWithdrawal", () => {
   });
 
   it("returns 422 policy when the fund cannot cover amount plus fee", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, getUtxos } = makeChain();
     getUtxos.mockResolvedValue([utxo("c", 0, "1000")]);
     const result = await handlePrepareWithdrawal(store, wallets, FUND, prepareInput(), chain);
@@ -345,7 +344,7 @@ describe("handlePrepareWithdrawal", () => {
 
 describe("handleFinalizeWithdrawal", () => {
   it("returns 400 when signed is missing", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, broadcastTransaction } = makeChain();
     const result = await handleFinalizeWithdrawal(
       store,
@@ -360,7 +359,7 @@ describe("handleFinalizeWithdrawal", () => {
   });
 
   it("re-checks membership and refuses a recipient who is not a member", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, broadcastTransaction } = makeChain();
     const result = await handleFinalizeWithdrawal(
       store,
@@ -377,7 +376,7 @@ describe("handleFinalizeWithdrawal", () => {
   });
 
   it("rejects a signed transaction that spends from outside the fund", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockResolvedValue(parentTx(1_000_000_000, MEMBER));
 
@@ -397,7 +396,7 @@ describe("handleFinalizeWithdrawal", () => {
   });
 
   it("rejects a signed transaction that does not pay exactly the recipient the amount", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, broadcastTransaction } = makeChain();
     const wrongAmount = finalizeInput({
       signed: signedTx({ outputs: [{ value: "999999999" }] }),
@@ -409,7 +408,7 @@ describe("handleFinalizeWithdrawal", () => {
   });
 
   it("broadcasts a valid member withdrawal and reports it recorded", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockImplementation(async (txid: string) => {
       if (txid === PARENT_TXID) return parentTx(1_000_000_000, FUND);
@@ -444,7 +443,7 @@ describe("handleFinalizeWithdrawal", () => {
   });
 
   it("returns a pending verdict with an explorer link when acceptance is not seen", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockImplementation(async (txid: string) => {
       if (txid === PARENT_TXID) return parentTx(1_000_000_000, FUND);
@@ -464,12 +463,12 @@ describe("handleFinalizeWithdrawal", () => {
     expect(result.body).toEqual({
       status: "pending",
       txid: NEW_TXID,
-      explorer_url: `https://explorer-tn10.kaspa.org/txs/${NEW_TXID}`,
+      explorer_url: `https://explorer.kaspa.org/tn10/txs/${NEW_TXID}`,
     });
   });
 
   it("returns 422 policy when the inputs cannot cover the outputs and fee", async () => {
-    const { store, wallets } = defaultStores();
+    const { store, wallets } = await defaultStores();
     const { chain, getTransaction, broadcastTransaction } = makeChain();
     getTransaction.mockResolvedValue(parentTx(1_000, FUND));
 

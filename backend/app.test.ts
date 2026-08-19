@@ -2,12 +2,13 @@ import type { Server } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { createApp } from "./app";
-import { SqliteAuthStore } from "./auth-store";
+import type { AuthStore } from "./auth-store";
 import type { BookChain } from "./book-api";
 import type { TxModel } from "./kaspa-api-types";
-import { SqliteMembershipStore } from "./membership-store";
+import type { MembershipStore } from "./membership-store";
 import type { PaymentChain } from "./payments-api";
-import { SqliteWalletStore } from "./wallet-store";
+import type { WalletStore } from "./wallet-store";
+import { FakeAuthStore, FakeMembershipStore, FakeWalletStore } from "./test-stores";
 import { pubkeyToP2PKAddress } from "./kaspa-address";
 import { messageHash } from "./kaspa-signature";
 
@@ -164,9 +165,9 @@ function validSignedTx(): string {
 interface TestServer {
   base: string;
   server: Server;
-  store: SqliteMembershipStore;
-  walletStore: SqliteWalletStore;
-  authStore: SqliteAuthStore;
+  store: MembershipStore;
+  walletStore: WalletStore;
+  authStore: AuthStore;
 }
 
 async function startServer(
@@ -174,9 +175,9 @@ async function startServer(
   confirmPolicy?: { maxAttempts: number; baseDelayMs: number; maxDelayMs: number; sleeper?: (ms: number) => Promise<void> },
   bookChain: BookChain = bookChainStub(),
 ): Promise<TestServer> {
-  const store = new SqliteMembershipStore();
-  const walletStore = new SqliteWalletStore();
-  const authStore = new SqliteAuthStore();
+  const store = new FakeMembershipStore();
+  const walletStore = new FakeWalletStore();
+  const authStore = new FakeAuthStore();
   const app = createApp({
     store,
     walletStore,
@@ -562,7 +563,7 @@ describe("HTTP API", () => {
     expect(await response.json()).toEqual({
       status: "pending",
       txid: "dd".repeat(32),
-      explorer_url: `https://explorer-tn10.kaspa.org/txs/${"dd".repeat(32)}`,
+      explorer_url: `https://explorer.kaspa.org/tn10/txs/${"dd".repeat(32)}`,
     });
   });
 });

@@ -66,7 +66,7 @@ describe("explorer proof URLs", () => {
 
   it("builds the explorer URL", () => {
     expect(proofUrl(config, txid)).toBe(
-      `https://explorer-tn10.kaspa.org/txs/${txid}`,
+      `https://explorer.kaspa.org/tn10/txs/${txid}`,
     );
   });
 });

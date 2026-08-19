@@ -109,7 +109,7 @@ describe('PayDialog pay-in flow', () => {
         body: {
           status: 'pending',
           txid: 'ab'.repeat(32),
-          explorer_url: `https://explorer-tn10.kaspa.org/txs/${'ab'.repeat(32)}`,
+          explorer_url: `https://explorer.kaspa.org/tn10/txs/${'ab'.repeat(32)}`,
         },
       },
     })
@@ -126,7 +126,7 @@ describe('PayDialog pay-in flow', () => {
     const link = within(dialog).getByTestId('pay-explorer-link')
     expect(link).toHaveAttribute(
       'href',
-      `https://explorer-tn10.kaspa.org/txs/${'ab'.repeat(32)}`,
+      `https://explorer.kaspa.org/tn10/txs/${'ab'.repeat(32)}`,
     )
 
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))

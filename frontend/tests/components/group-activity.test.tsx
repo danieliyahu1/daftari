@@ -28,7 +28,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     other_address: USER_ADDRESS,
     date: 1_700_000_000_000,
     txid: TXID,
-    proof_url: `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+    proof_url: `https://explorer.kaspa.org/tn10/txs/${TXID}`,
     ...overrides,
   }
 }
@@ -185,7 +185,7 @@ describe('GroupActivity', () => {
       const proof = row.querySelector('[data-testid="book-proof"]')
       expect(proof).toHaveAttribute(
         'href',
-        `https://explorer-tn10.kaspa.org/txs/${TXID}`,
+        `https://explorer.kaspa.org/tn10/txs/${TXID}`,
       )
     })
 

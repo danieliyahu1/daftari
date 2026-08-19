@@ -111,8 +111,8 @@ function makeWallets(
     ]),
   );
   return {
-    get: (address) => byAddress.get(address) ?? null,
-    resolveMany: (addresses) =>
+    get: async (address) => byAddress.get(address) ?? null,
+    resolveMany: async (addresses) =>
       addresses
         .map((address) => byAddress.get(address))
         .filter((wallet): wallet is Wallet => wallet !== undefined),
@@ -124,7 +124,7 @@ const ALICE_WALLET: Wallet = { address: ALICE, name: "Amina", kind: "user", crea
 const BOB_WALLET: Wallet = { address: BOB, name: "Kamau Traders", kind: "group", created_at: 0 };
 
 function makeMemberships(members: string[] = []): BookMembershipResolver {
-  return { isMember: (_chama, user) => members.includes(user) };
+  return { isMember: async (_chama, user) => members.includes(user) };
 }
 
 describe("deriveDirection", () => {
@@ -230,7 +230,7 @@ describe("deriveBookRow", () => {
       other_address: ALICE,
       date: 1_720_000_000,
       txid: "c".repeat(64),
-      proof_url: `https://explorer-tn10.kaspa.org/txs/${"c".repeat(64)}`,
+      proof_url: `https://explorer.kaspa.org/tn10/txs/${"c".repeat(64)}`,
     });
   });
 
@@ -357,7 +357,7 @@ describe("handleGetBook", () => {
           other_is_member: false,
           date: 300,
           txid: "c".repeat(64),
-          proof_url: `https://explorer-tn10.kaspa.org/txs/${"c".repeat(64)}`,
+          proof_url: `https://explorer.kaspa.org/tn10/txs/${"c".repeat(64)}`,
         },
       ],
       group: { address: GROUP, name: "Plot", kind: "group" },

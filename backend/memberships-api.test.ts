@@ -2,11 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BookChain } from "./book-api";
 import { UNREGISTERED_GROUP_COPY } from "./book-api";
 import type { TxModel } from "./kaspa-api-types";
-import { SqliteMembershipStore } from "./membership-store";
 import type { MembershipStore } from "./membership-store";
 import { handleAddMember, handleGetHome, UNREGISTERED_MEMBER_COPY } from "./memberships-api";
-import { SqliteWalletStore } from "./wallet-store";
 import type { WalletStore } from "./wallet-store";
+import { FakeMembershipStore, FakeWalletStore } from "./test-stores";
 
 const GROUP = "kaspatest:qzvp9r3gxg4wvcl44lm5phav2gz5zfx2de7qqqwd3hjlr53rtsn6wefhk0aj8";
 const MEMBER = "kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl";
@@ -17,15 +16,15 @@ const stores: MembershipStore[] = [];
 const wallets: WalletStore[] = [];
 
 function store(): MembershipStore {
-  const s = new SqliteMembershipStore({ now: () => 1_000 });
+  const s = new FakeMembershipStore({ now: () => 1_000 });
   stores.push(s);
   return s;
 }
 
 function walletStore(registered: Array<{ address: string; name: string; kind: "user" | "group" }> = []): WalletStore {
-  const w = new SqliteWalletStore();
+  const w = new FakeWalletStore({ now: () => 1_000 });
   wallets.push(w);
-  for (const entry of registered) w.register(entry.address, entry.name, entry.kind);
+  for (const entry of registered) void w.register(entry.address, entry.name, entry.kind);
   return w;
 }
 
@@ -83,22 +82,22 @@ function makeChain(party: string | null = null): BookChain {
 }
 
 describe("handleGetHome", () => {
-  it("returns an empty person home for an unregistered wallet", () => {
-    const result = handleGetHome(store(), walletStore(), MEMBER);
+  it("returns an empty person home for an unregistered wallet", async () => {
+    const result = await handleGetHome(store(), walletStore(), MEMBER);
     expect(result.status).toBe(200);
     expect(result.body).toEqual({ identity: null, members: [], chamas: [] });
   });
 
-  it("shows only registered chamas for a person", () => {
+  it("shows only registered chamas for a person", async () => {
     const s = store();
     const w = walletStore([
       { address: MEMBER, name: "Amina", kind: "user" },
       { address: GROUP, name: "Plot", kind: "group" },
     ]);
-    s.addMember(GROUP, MEMBER);
-    s.addMember(OTHER, MEMBER);
+    await s.addMember(GROUP, MEMBER);
+    await s.addMember(OTHER, MEMBER);
 
-    const result = handleGetHome(s, w, MEMBER);
+    const result = await handleGetHome(s, w, MEMBER);
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
@@ -108,31 +107,31 @@ describe("handleGetHome", () => {
     });
   });
 
-  it("hides memberships in unregistered or person chamas from a person home", () => {
+  it("hides memberships in unregistered or person chamas from a person home", async () => {
     const s = store();
     const w = walletStore([
       { address: MEMBER, name: "Amina", kind: "user" },
       { address: GROUP, name: "Plot", kind: "group" },
       { address: OTHER, name: "Bob", kind: "user" },
     ]);
-    s.addMember(OTHER, MEMBER);
+    await s.addMember(OTHER, MEMBER);
 
-    const result = handleGetHome(s, w, MEMBER);
+    const result = await handleGetHome(s, w, MEMBER);
 
     expect(result.status).toBe(200);
     expect((result.body as { chamas: unknown[] }).chamas).toEqual([]);
   });
 
-  it("shows the roster for a group wallet, unregistered members by address", () => {
+  it("shows the roster for a group wallet, unregistered members by address", async () => {
     const s = store();
     const w = walletStore([
       { address: GROUP, name: "Plot", kind: "group" },
       { address: MEMBER, name: "Amina", kind: "user" },
     ]);
-    s.addMember(GROUP, MEMBER);
-    s.addMember(GROUP, OTHER);
+    await s.addMember(GROUP, MEMBER);
+    await s.addMember(GROUP, OTHER);
 
-    const result = handleGetHome(s, w, GROUP);
+    const result = await handleGetHome(s, w, GROUP);
 
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
@@ -166,7 +165,7 @@ describe("handleAddMember", () => {
       makeChain(MEMBER),
     );
     expect(result.status).toBe(401);
-    expect(s.isMember(GROUP, OTHER)).toBe(false);
+    expect(await s.isMember(GROUP, OTHER)).toBe(false);
   });
 
   it("rejects a malformed address", async () => {
@@ -203,7 +202,7 @@ describe("handleAddMember", () => {
     expect(result.body).toEqual({
       error: { kind: "invalid", message: "This wallet hasn't paid into the chama." },
     });
-    expect(s.isMember(GROUP, MEMBER)).toBe(false);
+    expect(await s.isMember(GROUP, MEMBER)).toBe(false);
   });
 
   it("refuses a member who is not registered in the app", async () => {
@@ -217,7 +216,7 @@ describe("handleAddMember", () => {
     expect(result.body).toEqual({
       error: { kind: "invalid", message: UNREGISTERED_MEMBER_COPY },
     });
-    expect(s.isMember(GROUP, MEMBER)).toBe(false);
+    expect(await s.isMember(GROUP, MEMBER)).toBe(false);
   });
 
   it("adds a member who has transacted with the group", async () => {
@@ -234,7 +233,7 @@ describe("handleAddMember", () => {
     expect(result.body).toEqual({
       membership: { user_address: MEMBER, chama_address: GROUP, created_at: 1_000 },
     });
-    expect(s.isMember(GROUP, MEMBER)).toBe(true);
+    expect(await s.isMember(GROUP, MEMBER)).toBe(true);
   });
 
   it("is idempotent when the person is already a member", async () => {
@@ -246,7 +245,7 @@ describe("handleAddMember", () => {
     await handleAddMember(s, w, GROUP, { group_address: GROUP, member_address: MEMBER }, makeChain(MEMBER));
     const result = await handleAddMember(s, w, GROUP, { group_address: GROUP, member_address: MEMBER }, makeChain(MEMBER));
     expect(result.status).toBe(201);
-    expect(s.listForChama(GROUP)).toHaveLength(1);
+    expect(await s.listForChama(GROUP)).toHaveLength(1);
   });
 
   it("refuses a group adding itself as a member", async () => {
@@ -257,7 +256,7 @@ describe("handleAddMember", () => {
       member_address: GROUP,
     }, makeChain(GROUP));
     expect(result.status).toBe(422);
-    expect(s.isMember(GROUP, GROUP)).toBe(false);
+    expect(await s.isMember(GROUP, GROUP)).toBe(false);
   });
 
   it("refuses a registered group wallet as a member", async () => {
@@ -271,7 +270,7 @@ describe("handleAddMember", () => {
       member_address: OTHER,
     }, makeChain(OTHER));
     expect(result.status).toBe(422);
-    expect(s.isMember(GROUP, OTHER)).toBe(false);
+    expect(await s.isMember(GROUP, OTHER)).toBe(false);
   });
 
   it("surfaces an upstream error", async () => {

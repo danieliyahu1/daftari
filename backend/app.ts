@@ -114,16 +114,16 @@ export function createApp({
     res.json({ ok: true });
   });
 
-  app.post("/api/auth/challenge", (req: Request, res: Response) => {
-    send(res, handleCreateChallenge(authStore, req.body ?? {}, authConfig));
+  app.post("/api/auth/challenge", async (req: Request, res: Response) => {
+    send(res, await handleCreateChallenge(authStore, req.body ?? {}, authConfig));
   });
 
   app.post("/api/auth/session", async (req: Request, res: Response) => {
     send(res, await handleCreateSession(authStore, req.body ?? {}, authConfig));
   });
 
-  app.get("/api/memberships", requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    send(res, handleGetHome(store, walletStore, req.user!.address));
+  app.get("/api/memberships", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    send(res, await handleGetHome(store, walletStore, req.user!.address));
   });
 
   app.post("/api/memberships", requireAuth, (req: AuthenticatedRequest, res: Response) => {
@@ -132,12 +132,12 @@ export function createApp({
     );
   });
 
-  app.post("/api/wallets/register", requireAuth, (req: AuthenticatedRequest, res: Response) => {
-    send(res, handleRegisterWallet(walletStore, req.user!.address, req.body ?? {}));
+  app.post("/api/wallets/register", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    send(res, await handleRegisterWallet(walletStore, req.user!.address, req.body ?? {}));
   });
 
-  app.get("/api/wallets/resolve", (req: Request, res: Response) => {
-    send(res, handleResolveWallets(walletStore, req.query.addresses));
+  app.get("/api/wallets/resolve", async (req: Request, res: Response) => {
+    send(res, await handleResolveWallets(walletStore, req.query.addresses));
   });
 
   app.get("/api/chamas/:code/book", requireAuth, async (req: AuthenticatedRequest, res: Response) => {

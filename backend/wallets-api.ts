@@ -32,16 +32,16 @@ function validateKind(value: unknown): WalletKind {
   return value;
 }
 
-export function handleRegisterWallet(
+export async function handleRegisterWallet(
   store: WalletStore,
   requester: string,
   input: RegisterWalletInput,
-): RouteResult {
+): Promise<RouteResult> {
   try {
     const address = requester;
     const name = validateName(input.name);
     const kind = validateKind(input.kind);
-    const wallet = store.register(address, name, kind);
+    const wallet = await store.register(address, name, kind);
     logger.info("wallet registered", { address, kind, name });
     return { status: 201, body: { wallet } };
   } catch (err) {
@@ -57,13 +57,13 @@ function parseAddresses(value: unknown): string[] {
   return parts.map((part) => part.trim()).filter((part) => part !== "");
 }
 
-export function handleResolveWallets(
+export async function handleResolveWallets(
   store: WalletStore,
   addressesParam: unknown,
-): RouteResult {
+): Promise<RouteResult> {
   try {
     const addresses = parseAddresses(addressesParam);
-    const wallets = store.resolveMany(addresses);
+    const wallets = await store.resolveMany(addresses);
     logger.debug("wallets resolved", { requested: addresses.length, found: wallets.length });
     return { status: 200, body: { wallets } };
   } catch (err) {

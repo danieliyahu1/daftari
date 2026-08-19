@@ -17,19 +17,19 @@ export interface BookChain {
 }
 
 export interface BookWalletResolver {
-  get(address: string): Wallet | null;
-  resolveMany(addresses: string[]): Wallet[];
+  get(address: string): Promise<Wallet | null>;
+  resolveMany(addresses: string[]): Promise<Wallet[]>;
 }
 
 export interface BookMembershipResolver {
-  isMember(chamaAddress: string, userAddress: string): boolean;
+  isMember(chamaAddress: string, userAddress: string): Promise<boolean>;
 }
 
 export const UNREGISTERED_GROUP_COPY = "This isn't a registered group.";
 export const MEMBER_ONLY_COPY = "Only members can see this chama.";
 
 const NO_MEMBERSHIPS: BookMembershipResolver = {
-  isMember: () => false,
+  isMember: async () => false,
 };
 
 export interface GetBookInput {
@@ -194,8 +194,8 @@ export function bookRowsForPage(
 // A group that does not exist in the wallet registry. Fail closed: without a
 // resolver, no code is a registered group, so nothing is served as a book.
 const NO_WALLETS: BookWalletResolver = {
-  get: () => null,
-  resolveMany: () => [],
+  get: async () => null,
+  resolveMany: async () => [],
 };
 
 const COUNTERPARTY_PAGE_SIZE = 50;
@@ -242,12 +242,12 @@ export async function handleGetBook(
   try {
     const address = requireCode(code);
     const { limit, offset } = parsePagination(input);
-    const group = wallets.get(address);
+    const group = await wallets.get(address);
     if (group === null || group.kind !== "group") {
       logger.warn("book refused", { address, reason: "not-a-registered-group" });
       throw new AppError("invalid", UNREGISTERED_GROUP_COPY);
     }
-    if (requester !== address && !memberships.isMember(address, requester ?? "")) {
+    if (requester !== address && !(await memberships.isMember(address, requester ?? ""))) {
       logger.warn("book refused", { address, requester, reason: "not-a-member" });
       throw new AppError("policy", MEMBER_ONLY_COPY);
     }
@@ -257,18 +257,21 @@ export async function handleGetBook(
       chain.getFullTransactions(address, { limit, offset }),
     ]);
     const rows = bookRowsForPage(address, txs, network);
-    const resolved = wallets.resolveMany(rows.map((row) => row.other_address));
+    const resolved = await wallets.resolveMany(rows.map((row) => row.other_address));
     const byAddress = new Map(resolved.map((wallet) => [wallet.address, wallet]));
+    const membershipFlags = await Promise.all(
+      rows.map((row) => memberships.isMember(address, row.other_address)),
+    );
     const book: Book = {
       balance_sompi: toSompi(balance.balance).toString(),
-      rows: rows.map((row) => {
+      rows: rows.map((row, i) => {
         const counterparty = byAddress.get(row.other_address);
         return {
           ...row,
           ...(counterparty !== undefined
             ? { other_name: counterparty.name, other_kind: counterparty.kind }
             : {}),
-          other_is_member: memberships.isMember(address, row.other_address),
+          other_is_member: membershipFlags[i],
         };
       }),
       group: { address: group.address, name: group.name, kind: group.kind },
