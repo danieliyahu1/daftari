@@ -25,7 +25,7 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
               {row.other_name}
             </span>
             <span className="kind-mark" data-testid="book-party-kind">
-              {row.other_kind === 'group' ? 'group' : 'person'}
+              {row.other_kind === 'group' ? 'group' : ''}
             </span>
           </span>
         ) : (

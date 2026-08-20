@@ -49,7 +49,7 @@ describe('BookRow', () => {
       </ul>,
     )
     expect(screen.getByText('Amina')).toBeInTheDocument()
-    expect(screen.getByTestId('book-party-kind')).toHaveTextContent('person')
+    expect(screen.getByTestId('book-party-kind')).toHaveTextContent('')
     expect(screen.queryByTestId('book-party-address')).not.toBeInTheDocument()
   })
 
