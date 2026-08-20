@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { Auth } from '../../src/auth/AuthProvider'
 import type { Wallet } from '../../../shared/types'
 import { ToastProvider } from '../../src/components/Toaster'
 import { WalletStatus } from '../../src/components/WalletStatus'
@@ -7,8 +8,12 @@ import { RegistryProvider } from '../../src/wallet/registry'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
 import { installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
+const mockSignIn = vi.fn(async () => {})
+const defaultAuth: Auth = { status: 'ready', error: null, address: USER_ADDRESS, signIn: mockSignIn }
+let authState = { ...defaultAuth }
+
 vi.mock('../../src/auth/AuthProvider', () => ({
-  useAuth: () => ({ status: 'ready', error: null, address: USER_ADDRESS, signIn: vi.fn(async () => {}) }),
+  useAuth: () => authState,
 }))
 
 const REGISTERED: Wallet = {
@@ -32,6 +37,7 @@ function renderStatus(): void {
 
 describe('WalletStatus', () => {
   afterEach(() => {
+    authState = { ...defaultAuth }
     uninstallKastle()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -92,5 +98,33 @@ describe('WalletStatus', () => {
     await userEvent.click(screen.getByTestId('switch-network-button'))
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
     expect(mock.switchNetwork).toHaveBeenCalledWith('testnet-10')
+  })
+
+  it('shows sign-in button and toast when auth fails', async () => {
+    installConnectedKastle()
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [] } } })
+    authState = { ...defaultAuth, status: 'error', error: 'Could not sign you in.' }
+    renderStatus()
+    await waitFor(() => expect(screen.getByTestId('sign-in-button')).toHaveTextContent('Sign In'))
+    await waitFor(() => expect(screen.getByTestId('toast-error')).toHaveTextContent('Could not sign you in.'))
+  })
+
+  it('shows sign-in button when wallet is connected but auth is idle', async () => {
+    installConnectedKastle()
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [] } } })
+    authState = { ...defaultAuth, status: 'idle', address: null }
+    renderStatus()
+    await waitFor(() => expect(screen.getByTestId('sign-in-button')).toBeInTheDocument())
+    expect(screen.queryByTestId('toast-error')).not.toBeInTheDocument()
+  })
+
+  it('calls signIn when sign-in button is clicked', async () => {
+    installConnectedKastle()
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [] } } })
+    authState = { ...defaultAuth, status: 'error', error: 'Could not sign you in.' }
+    renderStatus()
+    await waitFor(() => expect(screen.getByTestId('sign-in-button')).toBeInTheDocument())
+    await userEvent.click(screen.getByTestId('sign-in-button'))
+    expect(mockSignIn).toHaveBeenCalledOnce()
   })
 })

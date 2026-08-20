@@ -50,14 +50,6 @@ export function HomePage(): JSX.Element {
     )
   }
 
-  if (auth.status !== 'ready') {
-    return (
-      <EmptyState title="Signing you in...">
-        {auth.status === 'error' && <p className="empty-sub">{auth.error}</p>}
-      </EmptyState>
-    )
-  }
-
   const isGroup = home?.identity?.kind === 'group'
 
   return (

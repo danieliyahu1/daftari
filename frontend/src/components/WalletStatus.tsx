@@ -18,6 +18,11 @@ export function WalletStatus(): JSX.Element {
     wallet.clearError()
   }, [wallet.error, wallet.clearError, showToast])
 
+  useEffect(() => {
+    if (!auth.error) return
+    showToast({ message: auth.error, kind: 'error' })
+  }, [auth.error, showToast])
+
   if (wallet.status === 'connected' && wallet.address) {
     if (auth.status === 'ready') {
       return (
@@ -38,11 +43,25 @@ export function WalletStatus(): JSX.Element {
       )
     }
 
+    if (auth.status === 'signing-in') {
+      return (
+        <div className="wallet-connected" data-testid="wallet-signing-in">
+          <span className="network-badge" data-testid="network-badge">
+            Signing in...
+          </span>
+        </div>
+      )
+    }
+
     return (
-      <div className="wallet-connected" data-testid="wallet-signing-in">
-        <span className="network-badge" data-testid="network-badge">
-          Signing in...
-        </span>
+      <div className="wallet-connect">
+        <button
+          className="button button-primary"
+          onClick={() => void auth.signIn()}
+          data-testid="sign-in-button"
+        >
+          Sign In
+        </button>
       </div>
     )
   }
