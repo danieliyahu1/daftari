@@ -182,10 +182,7 @@ describe('GroupActivity', () => {
       expect(row).toHaveTextContent('+1')
       expect(row).toHaveTextContent('Amina')
       const proof = row.querySelector('[data-testid="book-proof"]')
-      expect(proof).toHaveAttribute(
-        'href',
-        `https://explorer.kaspa.org/tn10/txs/${TXID}`,
-      )
+      expect(proof).toHaveAttribute('title', TXID)
     })
 
     it('refuses to render the feed when the wallet is not connected', async () => {

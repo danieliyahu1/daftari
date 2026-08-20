@@ -7,6 +7,10 @@ import { RegistryProvider } from '../../src/wallet/registry'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
 import { installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
 
+vi.mock('../../src/auth/AuthProvider', () => ({
+  useAuth: () => ({ status: 'ready', error: null, address: USER_ADDRESS, signIn: vi.fn(async () => {}) }),
+}))
+
 const REGISTERED: Wallet = {
   address: USER_ADDRESS,
   name: 'Amina',
@@ -54,7 +58,7 @@ describe('WalletStatus', () => {
     stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [REGISTERED] } } })
     renderStatus()
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
-    expect(screen.getByText('Amina')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Amina')).toBeInTheDocument())
     expect(screen.getByTestId('disconnect-button')).toBeInTheDocument()
     expect(screen.queryByTestId('network-badge')).not.toBeInTheDocument()
   })

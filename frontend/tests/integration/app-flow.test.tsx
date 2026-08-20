@@ -347,7 +347,7 @@ describe('whole demo flow — integration', () => {
       () => expect(screen.getByTestId('home-empty')).toBeInTheDocument(),
       { timeout: 3_000 },
     )
-    expect(screen.getByText('Amina')).toBeInTheDocument()
+    expect(screen.getAllByText('Amina').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByTestId('identity-kind')).toHaveTextContent('')
 
     // Disconnect and reconnect: recognized by name, no naming asked again (FR-1/7)

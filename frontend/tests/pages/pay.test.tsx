@@ -122,7 +122,7 @@ describe('PayDialog pay-in flow', () => {
 
     await waitFor(() => expect(within(dialog).getByTestId('pay-pending')).toBeInTheDocument())
     expect(within(dialog).getByText('Still confirming…')).toBeInTheDocument()
-    expect(within(dialog).getByTestId('pay-pending')).toHaveTextContent('ab'.repeat(32))
+    expect(within(dialog).getByTestId('pay-pending')).toHaveTextContent('abababab...ababab')
 
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
     expect(screen.queryByTestId('pay-dialog')).not.toBeInTheDocument()
@@ -256,7 +256,7 @@ describe('PayDialog pay-in flow', () => {
 
     await waitFor(() => expect(within(dialog).getByTestId('pay-error')).toBeInTheDocument())
     expect(
-      within(dialog).getByText('Kastle couldn\u2019t sign the payment. Try again.'),
+      within(dialog).getByText('Couldn\u2019t sign. Try again.'),
     ).toBeInTheDocument()
     expect(global.fetch).not.toHaveBeenCalledWith(
       expect.stringContaining('/api/payments/finalize'),

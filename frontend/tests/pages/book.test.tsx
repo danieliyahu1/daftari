@@ -19,6 +19,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     direction: 'in',
     amount_sompi: '100000000',
     other_address: USER_ADDRESS,
+    other_kind: 'user',
     date: 1_700_000_000_000,
     txid: TXID,
     ...overrides,

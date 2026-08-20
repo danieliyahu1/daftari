@@ -93,7 +93,7 @@ export function ContributePage(): JSX.Element {
           <p>{error}</p>
         </div>
       ) : contributed ? (
-        <EmptyState title="You're in the book.">
+        <EmptyState title={'You\u2019re in the book.'}>
           <p className="empty-sub">
             The chama leader will add you. It'll appear on your home once they do.
           </p>
