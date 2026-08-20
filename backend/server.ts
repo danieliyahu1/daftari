@@ -25,11 +25,10 @@ const walletStore = new TursoWalletStore({ url: tursoUrl, authToken: tursoAuthTo
 const store = new TursoMembershipStore({ url: tursoUrl, authToken: tursoAuthToken });
 const authStore = new TursoAuthStore({ url: tursoUrl, authToken: tursoAuthToken });
 
-const authSecretRaw =
-  process.env.DAFTARI_AUTH_SECRET ??
-  "daftari-dev-only-secret-change-me-in-production";
-if (process.env.DAFTARI_AUTH_SECRET === undefined) {
-  logger.warn("DAFTARI_AUTH_SECRET is not set; using an insecure development secret");
+const authSecretRaw = process.env.DAFTARI_AUTH_SECRET;
+if (authSecretRaw === undefined) {
+  logger.error("DAFTARI_AUTH_SECRET is not set");
+  process.exit(1);
 }
 const authSecret = new TextEncoder().encode(authSecretRaw);
 
