@@ -136,7 +136,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
         </EmptyState>
       ) : auth.status !== 'ready' ? (
         <EmptyState title="Signing you in...">
-          <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message.'}</p>
+          {auth.status === 'error' && <p className="empty-sub">{auth.error}</p>}
         </EmptyState>
       ) : loading ? (
         <div className="loading-container" data-testid="book-loading">
