@@ -165,7 +165,6 @@ function setupBackend(options: { named?: boolean } = {}): void {
         other_kind: 'user',
         date: 1_700_000_000_000,
         txid: TXID,
-        proof_url: `https://explorer.kaspa.org/tn10/txs/${TXID}`,
       })
       balance += 1_000_000_000n
       return json(200, { status: 'recorded', txid: TXID })
@@ -195,7 +194,6 @@ function setupBackend(options: { named?: boolean } = {}): void {
         other_kind: recipientWallet?.kind,
         date: 1_700_000_000_000,
         txid: 'ee'.repeat(32),
-        proof_url: `https://explorer.kaspa.org/tn10/txs/${'ee'.repeat(32)}`,
       })
       balance -= amount
       return json(200, { status: 'recorded', txid: 'ee'.repeat(32) })

@@ -10,7 +10,7 @@ export type PayPhase =
   | { name: 'review'; kas: string; sompi: string }
   | { name: 'preparing' }
   | { name: 'signing' }
-  | { name: 'pending'; txid: string; explorerUrl: string }
+  | { name: 'pending'; txid: string }
   | { name: 'sent' }
   | { name: 'failed' }
   | { name: 'error'; message: string }
@@ -112,7 +112,7 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
         return
       }
 
-      const { status, txid, explorer_url } = await apiClient.finalizePayment({ signed })
+      const { status, txid } = await apiClient.finalizePayment({ signed })
       logger.info('payment sent', { chamaAddress: groupCode, amountSompi: sompi, txid, status })
       if (status === 'recorded') {
         setPhase({ name: 'sent' })
@@ -120,7 +120,6 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
         setPhase({
           name: 'pending',
           txid,
-          explorerUrl: explorer_url ?? '',
         })
       }
     } catch (err) {
@@ -238,17 +237,7 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
             onAction={handleRecorded}
             testId="pay-pending"
           >
-            {phase.explorerUrl && (
-              <a
-                className="pay-explorer-link"
-                href={phase.explorerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="pay-explorer-link"
-              >
-                {shortTxid(phase.txid)}
-              </a>
-            )}
+            {shortTxid(phase.txid)}
           </PayOutcome>
         )}
 

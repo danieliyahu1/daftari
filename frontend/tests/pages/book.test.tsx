@@ -13,7 +13,6 @@ const BOOK_PATH = `GET /api/chamas/${encodeURIComponent(CHAMA_ADDRESS)}/book`
 const ROUTE = `/groups/${encodeURIComponent(CHAMA_ADDRESS)}`
 
 const TXID = 'ab'.repeat(32)
-const PROOF = `https://explorer.kaspa.org/tn10/txs/${TXID}`
 
 function makeRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -22,7 +21,6 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     other_address: USER_ADDRESS,
     date: 1_700_000_000_000,
     txid: TXID,
-    proof_url: PROOF,
     ...overrides,
   }
 }
@@ -133,9 +131,7 @@ describe('BookPage', () => {
     expect(within(row).getByText('kaspat...ukdl')).toBeInTheDocument()
     expect(within(row).getByTestId('book-date')).toHaveTextContent(/2023/)
     const proof = within(row).getByTestId('book-proof')
-    expect(proof).toHaveAttribute('href', PROOF)
-    expect(proof).toHaveAttribute('target', '_blank')
-    expect(proof).toHaveTextContent('Open the permanent record')
+    expect(proof).toHaveTextContent(TXID)
   })
 
   it('shows the out direction for money going out', async () => {

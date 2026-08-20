@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   getNetworkConfig,
-  proofUrl,
   resolveNetwork,
 } from "./network";
 
@@ -56,17 +55,6 @@ describe("getNetworkConfig", () => {
     );
     expect(getNetworkConfig({ VITE_KASPANET: "bogus" }).networkId).toBe(
       "testnet-10",
-    );
-  });
-});
-
-describe("explorer proof URLs", () => {
-  const config = resolveNetwork("testnet-10");
-  const txid = "4c173424b6b6e3b7dc7a7ba4170bd08688134db3286fc55129ac0482e9533dae";
-
-  it("builds the explorer URL", () => {
-    expect(proofUrl(config, txid)).toBe(
-      `https://explorer.kaspa.org/tn10/txs/${txid}`,
     );
   });
 });

@@ -12,7 +12,7 @@ export type SendPhase =
   | { name: 'review'; member: RosterMember; kas: string; sompi: string }
   | { name: 'preparing' }
   | { name: 'signing' }
-  | { name: 'pending'; txid: string; explorerUrl: string }
+  | { name: 'pending'; txid: string }
   | { name: 'sent' }
   | { name: 'failed' }
   | { name: 'error'; message: string }
@@ -101,7 +101,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
         return
       }
 
-      const { status, txid, explorer_url } = await apiClient.finalizeWithdrawal({
+      const { status, txid } = await apiClient.finalizeWithdrawal({
         fund_address: fundAddress,
         recipient_address: member.address,
         amount_sompi: sompi,
@@ -120,7 +120,6 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
         setPhase({
           name: 'pending',
           txid,
-          explorerUrl: explorer_url ?? '',
         })
       }
     } catch (err) {
@@ -290,17 +289,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
             <p className="dialog-copy">
               It hasn't been permanently recorded yet. The book shows it the moment it is.
             </p>
-            {phase.explorerUrl && (
-              <a
-                className="pay-explorer-link"
-                href={phase.explorerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="send-explorer-link"
-              >
-                {shortTxid(phase.txid)}
-              </a>
-            )}
+            {shortTxid(phase.txid)}
             <button
               className="button button-primary button-full"
               onClick={handleRecorded}

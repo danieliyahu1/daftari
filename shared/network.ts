@@ -5,9 +5,6 @@ const NETWORKS: Record<"testnet-10", NetworkConfig> = {
     networkId: "testnet-10",
     apiBaseUrl: "https://api-tn10.kaspa.org",
     addressPrefix: "kaspatest:",
-    explorer: {
-      primary: "https://explorer.kaspa.org/tn10",
-    },
   },
 };
 
@@ -19,8 +16,4 @@ export function getNetworkConfig(
   env: Record<string, string | undefined> = {},
 ): NetworkConfig {
   return resolveNetwork(env.KASPANET ?? env.VITE_KASPANET);
-}
-
-export function proofUrl(network: NetworkConfig, txid: string): string {
-  return `${network.explorer.primary}/txs/${txid}`;
 }

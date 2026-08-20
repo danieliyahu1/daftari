@@ -28,7 +28,6 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     other_address: USER_ADDRESS,
     date: 1_700_000_000_000,
     txid: TXID,
-    proof_url: `https://explorer.kaspa.org/tn10/txs/${TXID}`,
     ...overrides,
   }
 }

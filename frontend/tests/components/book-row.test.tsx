@@ -12,7 +12,6 @@ function makeRow(overrides: Partial<BookRow> = {}): BookRow {
     other_address: USER_ADDRESS,
     date: 1_700_000_000_000,
     txid: TXID,
-    proof_url: `https://explorer.kaspa.org/tn10/txs/${TXID}`,
     ...overrides,
   }
 }
@@ -28,10 +27,7 @@ describe('BookRow', () => {
     expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--in')
     expect(screen.getByText('kaspat...ukdl')).toBeInTheDocument()
     expect(screen.getByTestId('book-date')).toHaveTextContent(/2023/)
-    expect(screen.getByTestId('book-proof')).toHaveAttribute(
-      'href',
-      `https://explorer.kaspa.org/tn10/txs/${TXID}`,
-    )
+    expect(screen.getByTestId('book-proof')).toHaveTextContent(TXID)
   })
 
   it('renders an outgoing row with a minus amount', () => {

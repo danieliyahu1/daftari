@@ -1,4 +1,4 @@
-import { getNetworkConfig, proofUrl } from "../shared/network";
+import { getNetworkConfig } from "../shared/network";
 import { scriptPublicKeyForAddress } from "./kaspa-address";
 import { AppError, requiredStr, toRouteResult } from "./errors";
 import type { RouteResult } from "./errors";
@@ -218,7 +218,6 @@ export async function handleFinalizeWithdrawal(
         body: {
           status: "pending",
           txid,
-          explorer_url: proofUrl(getNetworkConfig(), txid),
         },
       };
     }

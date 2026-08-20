@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { getNetworkConfig } from "../shared/network";
 import type { Book, BookRow, Wallet, WalletKind } from "../shared/types";
 import type { TxModel } from "./kaspa-api-types";
 import {
@@ -19,8 +18,6 @@ const GROUP = "kaspatest:qzvp9r3gxg4wvcl44lm5phav2gz5zfx2de7qqqwd3hjlr53rtsn6wef
 const ALICE = "kaspatest:qrzjdw58hp75mvvx6aq58kjyg3xjk7pt0k8txpll9sxdary9npn8v3pmkukdl";
 const BOB = "kaspatest:qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhqrxplya";
 const INVALID_CODE = "kaspatest:not-an-address";
-
-const NETWORK = getNetworkConfig();
 
 interface TxOpts {
   txid?: string;
@@ -245,14 +242,13 @@ describe("deriveBookRow", () => {
         { address: ALICE, amount: 10 },
       ],
     });
-    const row = deriveBookRow(GROUP, t, NETWORK);
+    const row = deriveBookRow(GROUP, t);
     expect(row).toEqual<BookRow>({
       direction: "in",
       amount_sompi: "90",
       other_address: ALICE,
       date: 1_720_000_000,
       txid: "c".repeat(64),
-      proof_url: `https://explorer.kaspa.org/tn10/txs/${"c".repeat(64)}`,
     });
   });
 
@@ -264,7 +260,7 @@ describe("deriveBookRow", () => {
         { address: GROUP, amount: 40 },
       ],
     });
-    const row = deriveBookRow(GROUP, t, NETWORK);
+    const row = deriveBookRow(GROUP, t);
     expect(row?.amount_sompi).toBe("100");
   });
 
@@ -279,7 +275,7 @@ describe("deriveBookRow", () => {
         { address: GROUP, amount: 20 },
       ],
     });
-    const row = deriveBookRow(GROUP, t, NETWORK);
+    const row = deriveBookRow(GROUP, t);
     expect(row?.amount_sompi).toBe("80");
     expect(row?.direction).toBe("out");
   });
@@ -289,7 +285,7 @@ describe("deriveBookRow", () => {
       inputs: [{ address: ALICE, amount: 100 }],
       outputs: [{ address: BOB, amount: 100 }],
     });
-    expect(deriveBookRow(GROUP, t, NETWORK)).toBeNull();
+    expect(deriveBookRow(GROUP, t, )).toBeNull();
   });
 
   it("returns null when no counterparty can be identified", () => {
@@ -297,7 +293,7 @@ describe("deriveBookRow", () => {
       inputs: [],
       outputs: [{ address: GROUP, amount: 100 }],
     });
-    expect(deriveBookRow(GROUP, t, NETWORK)).toBeNull();
+    expect(deriveBookRow(GROUP, t, )).toBeNull();
   });
 
   it("treats a group-send-with-change as outgoing to the counterparty", () => {
@@ -311,14 +307,13 @@ describe("deriveBookRow", () => {
         { address: GROUP, amount: 30 },
       ],
     });
-    const row = deriveBookRow(GROUP, t, NETWORK);
+    const row = deriveBookRow(GROUP, t);
     expect(row).toEqual<BookRow>({
       direction: "out",
       amount_sompi: "120",
       other_address: ALICE,
       date: 0,
       txid: "a".repeat(64),
-      proof_url: `https://explorer.kaspa.org/tn10/txs/${"a".repeat(64)}`,
     });
   });
 
@@ -327,7 +322,7 @@ describe("deriveBookRow", () => {
       inputs: [{ address: GROUP }],
       outputs: [{ address: ALICE, amount: 100 }],
     });
-    expect(deriveBookRow(GROUP, t, NETWORK)).toBeNull();
+    expect(deriveBookRow(GROUP, t, )).toBeNull();
   });
 });
 
@@ -337,7 +332,7 @@ describe("bookRowsForPage", () => {
     const rejected = tx({ txid: "b".repeat(64), block_time: 200, is_accepted: false, inputs: [{ address: BOB, amount: 20 }], outputs: [{ address: GROUP, amount: 20 }] });
     const newest = tx({ txid: "c".repeat(64), block_time: 300, is_accepted: true, inputs: [{ address: BOB, amount: 30 }], outputs: [{ address: GROUP, amount: 30 }] });
 
-    const rows = bookRowsForPage(GROUP, [older, rejected, newest], NETWORK);
+    const rows = bookRowsForPage(GROUP, [older, rejected, newest]);
 
     expect(rows.map((row) => row.txid)).toEqual(["c".repeat(64), "a".repeat(64)]);
   });
@@ -346,14 +341,14 @@ describe("bookRowsForPage", () => {
     const t1 = tx({ txid: "b".repeat(64), block_time: 100, inputs: [{ address: ALICE, amount: 1 }], outputs: [{ address: GROUP, amount: 1 }] });
     const t2 = tx({ txid: "a".repeat(64), block_time: 100, inputs: [{ address: BOB, amount: 1 }], outputs: [{ address: GROUP, amount: 1 }] });
 
-    const rows = bookRowsForPage(GROUP, [t1, t2], NETWORK);
+    const rows = bookRowsForPage(GROUP, [t1, t2]);
 
     expect(rows.map((row) => row.txid)).toEqual(["a".repeat(64), "b".repeat(64)]);
   });
 
   it("never invents a row when the chain does not support it", () => {
     const unsupported = tx({ txid: "d".repeat(64), is_accepted: true, inputs: [], outputs: [{ address: GROUP, amount: 5 }] });
-    const rows = bookRowsForPage(GROUP, [unsupported], NETWORK);
+    const rows = bookRowsForPage(GROUP, [unsupported]);
     expect(rows).toEqual([]);
   });
 });
@@ -405,7 +400,6 @@ describe("handleGetBook", () => {
           other_is_member: false,
           date: 300,
           txid: "c".repeat(64),
-          proof_url: `https://explorer.kaspa.org/tn10/txs/${"c".repeat(64)}`,
         },
       ],
       group: { address: GROUP, name: "Plot", kind: "group" },

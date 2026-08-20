@@ -109,7 +109,6 @@ describe('PayDialog pay-in flow', () => {
         body: {
           status: 'pending',
           txid: 'ab'.repeat(32),
-          explorer_url: `https://explorer.kaspa.org/tn10/txs/${'ab'.repeat(32)}`,
         },
       },
     })
@@ -123,11 +122,7 @@ describe('PayDialog pay-in flow', () => {
 
     await waitFor(() => expect(within(dialog).getByTestId('pay-pending')).toBeInTheDocument())
     expect(within(dialog).getByText('Still confirming…')).toBeInTheDocument()
-    const link = within(dialog).getByTestId('pay-explorer-link')
-    expect(link).toHaveAttribute(
-      'href',
-      `https://explorer.kaspa.org/tn10/txs/${'ab'.repeat(32)}`,
-    )
+    expect(within(dialog).getByTestId('pay-pending')).toHaveTextContent('ab'.repeat(32))
 
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
     expect(screen.queryByTestId('pay-dialog')).not.toBeInTheDocument()

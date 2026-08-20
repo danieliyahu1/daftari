@@ -563,7 +563,6 @@ describe("HTTP API", () => {
     expect(await response.json()).toEqual({
       status: "pending",
       txid: "dd".repeat(32),
-      explorer_url: `https://explorer.kaspa.org/tn10/txs/${"dd".repeat(32)}`,
     });
   });
 });

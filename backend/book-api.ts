@@ -1,5 +1,4 @@
-import { getNetworkConfig, proofUrl } from "../shared/network";
-import type { NetworkConfig, Wallet } from "../shared/types";
+import type { Wallet } from "../shared/types";
 import type { Book, BookDirection, BookRow } from "../shared/types";
 import { AppError, requiredStr, toRouteResult, validInt, validUint } from "./errors";
 import type { RouteResult } from "./errors";
@@ -178,7 +177,6 @@ function groupAmount(
 export function deriveBookRow(
   groupAddress: string,
   tx: TxModel,
-  network: NetworkConfig,
 ): BookRow | null {
   const direction = deriveDirection(groupAddress, tx);
   if (direction === null) return null;
@@ -192,7 +190,6 @@ export function deriveBookRow(
     other_address: otherAddress,
     date: tx.block_time,
     txid: tx.transaction_id,
-    proof_url: proofUrl(network, tx.transaction_id),
   };
 }
 
@@ -202,11 +199,10 @@ export function deriveBookRow(
 export function bookRowsForPage(
   groupAddress: string,
   txs: readonly TxModel[],
-  network: NetworkConfig,
 ): BookRow[] {
   return txs
     .filter((tx) => tx.is_accepted)
-    .map((tx) => deriveBookRow(groupAddress, tx, network))
+    .map((tx) => deriveBookRow(groupAddress, tx))
     .filter((row): row is BookRow => row !== null)
     .sort(
       (a, b) =>
@@ -275,12 +271,11 @@ export async function handleGetBook(
       logger.warn("book refused", { address, requester, reason: "not-a-member" });
       throw new AppError("policy", MEMBER_ONLY_COPY);
     }
-    const network = getNetworkConfig();
     const [balance, txs] = await Promise.all([
       chain.getBalance(address),
       chain.getFullTransactions(address, { limit, offset }),
     ]);
-    const rows = bookRowsForPage(address, txs, network);
+    const rows = bookRowsForPage(address, txs);
     const resolved = await wallets.resolveMany(rows.map((row) => row.other_address));
     const byAddress = new Map(resolved.map((wallet) => [wallet.address, wallet]));
     const membershipFlags = await Promise.all(

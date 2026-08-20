@@ -21,7 +21,6 @@ describe("shared type sanity", () => {
       other_address: "",
       date: 0,
       txid: "",
-      proof_url: "",
     };
     expectTypeOf(row.direction).toEqualTypeOf<"in" | "out">();
     expectTypeOf(row.amount_sompi).toEqualTypeOf<string>();

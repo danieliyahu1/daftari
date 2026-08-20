@@ -1,14 +1,9 @@
 export type NetworkId = "testnet-10";
 
-export interface ExplorerConfig {
-  primary: string;
-}
-
 export interface NetworkConfig {
   networkId: NetworkId;
   apiBaseUrl: string;
   addressPrefix: string;
-  explorer: ExplorerConfig;
 }
 
 export interface Membership {
@@ -43,7 +38,6 @@ export interface BookRow {
   other_is_member?: boolean;
   date: number;
   txid: string;
-  proof_url: string;
 }
 
 export interface Book {

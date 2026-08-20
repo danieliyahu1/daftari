@@ -38,15 +38,9 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
         <span className="book-date" data-testid="book-date">
           {formatDate(row.date / 1000)}
         </span>
-        <a
-          className="book-proof"
-          href={row.proof_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="book-proof"
-        >
-          Open the permanent record
-        </a>
+        <span className="book-proof" data-testid="book-proof">
+          {row.txid}
+        </span>
         {onAdd ? (
           <button
             className="button button-sm button-secondary add-member"

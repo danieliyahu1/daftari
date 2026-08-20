@@ -539,7 +539,6 @@ describe("handleFinalizePayment", () => {
     expect(result.body).toEqual({
       status: "pending",
       txid: TXID,
-      explorer_url: `https://explorer.kaspa.org/tn10/txs/${TXID}`,
     });
   });
 
