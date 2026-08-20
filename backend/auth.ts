@@ -9,7 +9,7 @@ import { logger } from "./logger";
 export const SESSION_TTL_MS = 15 * 60_000;
 
 const MESSAGE_VERSION = "1";
-const STATEMENT = "I'm signing into Daftari.";
+const STATEMENT = "I'm signing into Daftari. This is free — no payment happens here.";
 
 export interface AuthConfig {
   origin: string;
