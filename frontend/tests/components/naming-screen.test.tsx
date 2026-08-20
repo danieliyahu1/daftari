@@ -39,12 +39,12 @@ describe('NamingScreen', () => {
     renderScreen()
 
     await waitFor(() => expect(screen.getByTestId('naming-name-input')).toBeInTheDocument())
-    expect(screen.getByText('Give this wallet a name.')).toBeInTheDocument()
+    expect(screen.getByText('What should we call this?')).toBeInTheDocument()
     expect(
-      screen.getByText('Is this wallet yours, or a group\u2019s?'),
+      screen.getByText('Are you joining a chama, or creating one?'),
     ).toBeInTheDocument()
-    expect(screen.getByText('This is me')).toBeInTheDocument()
-    expect(screen.getByText('This is a group')).toBeInTheDocument()
+    expect(screen.getByText('Joining a chama')).toBeInTheDocument()
+    expect(screen.getByText('Creating a chama')).toBeInTheDocument()
   })
 
   it('preselects nothing and keeps continue disabled until a kind is chosen', async () => {

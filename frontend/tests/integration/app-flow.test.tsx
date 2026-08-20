@@ -263,7 +263,7 @@ describe('whole demo flow — integration', () => {
     await waitFor(() => expect(within(dialog).getByTestId('pay-sent')).toBeInTheDocument())
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
     await waitFor(() =>
-      expect(screen.getByText('Your contribution is in the book.')).toBeInTheDocument(),
+      expect(screen.getByText("You\u2019re in the book.")).toBeInTheDocument(),
     )
 
     // The group sees Amina's contribution and brings her in
@@ -310,8 +310,8 @@ describe('whole demo flow — integration', () => {
     await userEvent.click(screen.getByTestId('group-card').querySelector('a')!)
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(2))
     const amounts = screen.getAllByTestId('book-amount').map((el) => el.textContent)
-    expect(amounts).toContain('+10 KAS')
-    expect(amounts).toContain('−2 KAS')
+    expect(amounts).toContain('+10')
+    expect(amounts).toContain('−2')
     expect(screen.queryByTestId('add-member')).not.toBeInTheDocument()
   })
 
@@ -348,7 +348,7 @@ describe('whole demo flow — integration', () => {
       { timeout: 3_000 },
     )
     expect(screen.getByText('Amina')).toBeInTheDocument()
-    expect(screen.getByTestId('identity-kind')).toHaveTextContent('person')
+    expect(screen.getByTestId('identity-kind')).toHaveTextContent('')
 
     // Disconnect and reconnect: recognized by name, no naming asked again (FR-1/7)
     await userEvent.click(screen.getByTestId('disconnect-button'))

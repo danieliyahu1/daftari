@@ -105,7 +105,7 @@ describe('GroupActivity', () => {
 
       const send = screen.getByTestId('send-button')
       expect(send).toBeDisabled()
-      expect(send).toHaveTextContent('Send to a member')
+      expect(send).toHaveTextContent('Send to someone in the chama')
       expect(screen.getByTestId('send-hint')).toBeInTheDocument()
     })
 
@@ -179,7 +179,7 @@ describe('GroupActivity', () => {
       await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
 
       const row = screen.getByTestId('book-row')
-      expect(row).toHaveTextContent('+1 KAS')
+      expect(row).toHaveTextContent('+1')
       expect(row).toHaveTextContent('Amina')
       const proof = row.querySelector('[data-testid="book-proof"]')
       expect(proof).toHaveAttribute(
@@ -194,7 +194,7 @@ describe('GroupActivity', () => {
       renderActivity()
       await waitFor(
         () =>
-          expect(screen.getByText('Connect your wallet to see this chama.')).toBeInTheDocument(),
+          expect(screen.getByText('Connect to see this chama.')).toBeInTheDocument(),
         { timeout: 1_500 },
       )
       expect(screen.queryByTestId('book-loading')).not.toBeInTheDocument()

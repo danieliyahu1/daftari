@@ -229,7 +229,7 @@ export function useKastle(): KastleState & KastleActions {
     } catch (err) {
       const message = isUserRejection(err)
         ? 'Connection cancelled.'
-        : "Couldn't connect your wallet."
+        : "Couldn't connect. Try again."
       logger.error('kastle connection failed', {
         error: err instanceof Error ? err.message : String(err),
       })

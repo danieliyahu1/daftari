@@ -23,11 +23,11 @@ describe('BookRow', () => {
         <BookRowComponent row={makeRow()} />
       </ul>,
     )
-    expect(screen.getByTestId('book-amount')).toHaveTextContent('+1 KAS')
+    expect(screen.getByTestId('book-amount')).toHaveTextContent('+1')
     expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--in')
     expect(screen.getByText('Unnamed')).toBeInTheDocument()
     expect(screen.getByTestId('book-date')).toHaveTextContent(/2023/)
-    expect(screen.getByTestId('book-proof')).toHaveTextContent('payment id')
+    expect(screen.getByTestId('book-proof')).toHaveTextContent('proof')
   })
 
   it('renders an outgoing row with a minus amount', () => {
@@ -36,7 +36,7 @@ describe('BookRow', () => {
         <BookRowComponent row={makeRow({ direction: 'out' })} />
       </ul>,
     )
-    expect(screen.getByTestId('book-amount')).toHaveTextContent('−1 KAS')
+    expect(screen.getByTestId('book-amount')).toHaveTextContent('−1')
     expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--out')
   })
 
@@ -62,7 +62,7 @@ describe('BookRow', () => {
       </ul>,
     )
     expect(screen.getByText('Kamau Traders')).toBeInTheDocument()
-    expect(screen.getByTestId('book-party-kind')).toHaveTextContent('group')
+    expect(screen.getByTestId('book-party-kind')).toHaveTextContent('chama')
   })
 
   it('shows Unnamed with click-to-copy for unregistered counterparties', () => {
@@ -117,7 +117,7 @@ describe('BookRow', () => {
       </ul>,
     )
     const proof = screen.getByTestId('book-proof')
-    expect(proof).toHaveTextContent('payment id')
+    expect(proof).toHaveTextContent('proof')
     proof.click()
     expect(writeText).toHaveBeenCalledWith(TXID)
   })

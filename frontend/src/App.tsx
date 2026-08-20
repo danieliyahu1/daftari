@@ -36,9 +36,7 @@ function App(): JSX.Element {
                       </Routes>
                     </RegistryGate>
                   </main>
-                  <footer className="app-footer">
-                    <p>On testnet-10</p>
-                  </footer>
+
                 </div>
               </BrowserRouter>
             </RegistryProvider>

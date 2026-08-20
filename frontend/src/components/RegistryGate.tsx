@@ -38,7 +38,7 @@ export function RegistryGate({ children }: RegistryGateProps): JSX.Element {
     default:
       return (
         <div className="loading-container" data-testid="registry-loading">
-          <p>Checking your wallet...</p>
+          <p>Looking you up...</p>
         </div>
       )
   }

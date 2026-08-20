@@ -25,7 +25,7 @@ describe('WalletStatus', () => {
     uninstallKastle()
     renderStatus()
     expect(screen.getByTestId('install-message')).toHaveTextContent(
-      'Install Kastle to connect.',
+      'Install the Kastle wallet extension to get started.',
     )
   })
 
@@ -36,11 +36,11 @@ describe('WalletStatus', () => {
     await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
   })
 
-  it('shows the connected chip with the network badge', async () => {
+  it('shows the connected chip without a network badge', async () => {
     installConnectedKastle()
     renderStatus()
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
-    expect(screen.getByTestId('network-badge')).toHaveTextContent('testnet-10')
+    expect(screen.queryByTestId('network-badge')).not.toBeInTheDocument()
   })
 
   it('disconnects on demand', async () => {

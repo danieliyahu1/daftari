@@ -150,7 +150,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
           recipientAddress: member.address,
           amountSompi: sompi,
         })
-        setPhase({ name: 'error', message: 'Kastle couldn\u2019t sign the payment. Try again.' })
+        setPhase({ name: 'error', message: 'Couldn\u2019t sign. Try again.' })
       }
     }
   }
@@ -166,15 +166,15 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
         className="dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Send to a member"
+        aria-label="Send to someone in the chama"
         data-testid="send-dialog-panel"
       >
         {phase.name === 'member' && (
           <div className="send-member">
-            <h2 className="dialog-title">Send to a member</h2>
+            <h2 className="dialog-title">Send to someone in the chama</h2>
             {members.length === 0 ? (
               <p className="dialog-copy" data-testid="send-no-members">
-                Add members first — the fund can only send to its members.
+                Add people to the chama first. You can only send to members.
               </p>
             ) : (
               <ul className="send-member-list" data-testid="send-member-list">
@@ -203,7 +203,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
           <div className="send-amount">
             <h2 className="dialog-title">Send to {memberLabel(phase.member)}</h2>
             <label className="join-form-label" htmlFor="send-amount">
-              Amount in KAS
+              How much?
             </label>
             <input
               id="send-amount"
@@ -247,7 +247,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
               Send {phase.kas} KAS to {memberLabel(phase.member)}?
             </h2>
             <p className="dialog-copy send-warning" data-testid="send-warning">
-              This moves money out of the fund. Every member will see it in the book. It
+              This moves money out of the chama. Every member will see it in the book. It
               can&rsquo;t be undone.
             </p>
             <div className="dialog-actions">
@@ -275,7 +275,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
             <p className="pay-waiting-copy">
               {phase.name === 'preparing'
                 ? 'Preparing the payment...'
-                : 'Sign the payment in Kastle...'}
+                : 'Confirm in your wallet...'}
             </p>
           </div>
         )}
@@ -287,7 +287,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
             </div>
             <h2 className="dialog-title">Still confirming…</h2>
             <p className="dialog-copy">
-              It hasn't been permanently recorded yet. The book shows it the moment it is.
+              It hasn't been permanently recorded yet. It will appear in the book once it's confirmed.
             </p>
             {shortTxid(phase.txid)}
             <button
@@ -295,7 +295,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
               onClick={handleRecorded}
               data-testid="send-back-to-book"
             >
-              Back to the fund
+              Back to the chama
             </button>
           </div>
         )}
@@ -312,7 +312,7 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
               onClick={handleRecorded}
               data-testid="send-back-to-book"
             >
-              Back to the fund
+              Back to the chama
             </button>
           </div>
         )}

@@ -135,7 +135,7 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
         setPhase({ name: 'review', kas, sompi })
       } else {
         logger.warn('signing failed', { error: err instanceof Error ? err.message : String(err), chamaAddress: groupCode, amountSompi: sompi })
-        setPhase({ name: 'error', message: 'Kastle couldn\u2019t sign the payment. Try again.' })
+        setPhase({ name: 'error', message: 'Couldn\u2019t sign. Try again.' })
       }
     }
   }
@@ -151,14 +151,14 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
         className="dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Pay into the group"
+        aria-label="Pay into the chama"
         data-testid="pay-dialog-panel"
       >
         {phase.name === 'amount' && (
           <div className="pay-amount">
-            <h2 className="dialog-title">Pay into the group</h2>
+            <h2 className="dialog-title">Pay into the chama</h2>
             <label className="join-form-label" htmlFor="pay-amount">
-              Amount in KAS
+              How much?
             </label>
             <input
               id="pay-amount"
@@ -222,7 +222,7 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
             <p className="pay-waiting-copy">
               {phase.name === 'preparing'
                 ? 'Preparing your payment...'
-                : 'Sign the payment in Kastle...'}
+                : 'Confirm in your wallet...'}
             </p>
           </div>
         )}
@@ -231,7 +231,7 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
           <PayOutcome
             kind="ok"
             title="Still confirming…"
-            copy={`It hasn't been permanently recorded yet. Check the chain for this transaction — the book shows it the moment it is.`}
+            copy={`It hasn't been permanently recorded yet. It will appear in the book once it's confirmed.`}
             actionLabel="Back to the book"
             actionTestId="pay-back-to-book"
             onAction={handleRecorded}

@@ -159,7 +159,7 @@ describe('useKastle wallet layer', () => {
       await result.current.connect()
     })
     expect(result.current.status).toBe('disconnected')
-    expect(result.current.error).toBe("Couldn't connect your wallet.")
+    expect(result.current.error).toBe("Couldn't connect. Try again.")
   })
 
   it('clears a recorded error on demand', async () => {
@@ -172,7 +172,7 @@ describe('useKastle wallet layer', () => {
     await act(async () => {
       await result.current.connect()
     })
-    expect(result.current.error).toBe("Couldn't connect your wallet.")
+    expect(result.current.error).toBe("Couldn't connect. Try again.")
 
     act(() => result.current.clearError())
 

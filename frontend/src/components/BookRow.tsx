@@ -17,7 +17,7 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
           className={`book-amount mono book-amount--${row.direction}`}
           data-testid="book-amount"
         >
-          {sign}{sompiToKas(row.amount_sompi)} KAS
+          {sign}{sompiToKas(row.amount_sompi)}
         </span>
         {row.other_name ? (
           <span className="book-party">
@@ -25,7 +25,7 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
               {row.other_name}
             </span>
             <span className="kind-mark" data-testid="book-party-kind">
-              {row.other_kind === 'group' ? 'group' : ''}
+              {row.other_kind === 'group' ? 'chama' : ''}
             </span>
           </span>
         ) : (
@@ -53,7 +53,7 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
           tabIndex={0}
           onClick={() => void navigator.clipboard.writeText(row.txid)}
         >
-          payment id
+          proof
         </span>
         {onAdd ? (
           <button

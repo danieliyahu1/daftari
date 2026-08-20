@@ -63,7 +63,7 @@ describe('ContributePage', () => {
     uninstallKastle()
     renderContribute()
     expect(
-      screen.getByText('Connect your wallet to contribute.'),
+      screen.getByText('Connect to contribute.'),
     ).toBeInTheDocument()
   })
 
@@ -71,7 +71,7 @@ describe('ContributePage', () => {
     stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [] } } })
     renderContribute()
     await waitFor(() => expect(screen.getByTestId('contribute-error')).toBeInTheDocument())
-    expect(screen.getByText("This isn't a registered group.")).toBeInTheDocument()
+    expect(screen.getByText("This isn\u2019t a chama.")).toBeInTheDocument()
   })
 
   it('asks an unregistered person to name their wallet before joining', async () => {
@@ -87,7 +87,7 @@ describe('ContributePage', () => {
 
     await waitFor(() => expect(screen.getByTestId('contribute-group')).toBeInTheDocument())
     expect(screen.getByTestId('contribute-name-first')).toHaveTextContent(
-      'Name your wallet in the app before you can join.',
+      'Name your account first, then you can join.',
     )
     expect(screen.queryByTestId('contribute-button')).not.toBeInTheDocument()
   })
@@ -113,10 +113,10 @@ describe('ContributePage', () => {
     await userEvent.click(within(dialog).getByTestId('pay-back-to-book'))
 
     await waitFor(() =>
-      expect(screen.getByText('Your contribution is in the book.')).toBeInTheDocument(),
+      expect(screen.getByText("You\u2019re in the book.")).toBeInTheDocument(),
     )
     expect(
-      screen.getByText(/The group will bring you in/),
+      screen.getByText(/The chama leader will add you/),
     ).toBeInTheDocument()
   })
 })

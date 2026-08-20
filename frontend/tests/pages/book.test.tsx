@@ -70,7 +70,7 @@ describe('BookPage', () => {
     stubApi({ [BOOK_PATH]: { body: bookStub({ balance_sompi: '5000000000' }) } })
     renderBook()
     await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
-    expect(screen.getByText('The group has')).toBeInTheDocument()
+    expect(screen.getByText('The chama has')).toBeInTheDocument()
     expect(screen.getByTestId('book-balance')).toHaveTextContent('50 KAS')
   })
 
@@ -79,7 +79,7 @@ describe('BookPage', () => {
     renderBook()
     await waitFor(() => expect(screen.getByTestId('book-group')).toBeInTheDocument())
     expect(screen.getByTestId('book-group')).toHaveTextContent('Plot')
-    expect(screen.getByTestId('book-group-kind')).toHaveTextContent('group')
+    expect(screen.getByTestId('book-group-kind')).toHaveTextContent('chama')
   })
 
   it('shows a registered counterparty by name with a person mark in the book', async () => {
@@ -94,7 +94,7 @@ describe('BookPage', () => {
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
     expect(within(row).getByText('Amina')).toBeInTheDocument()
-    expect(within(row).getByTestId('book-party-kind')).toHaveTextContent('person')
+    expect(within(row).getByTestId('book-party-kind')).toHaveTextContent('')
   })
 
   it('refuses an unregistered group with the exact copy', async () => {
@@ -127,11 +127,11 @@ describe('BookPage', () => {
     renderBook()
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
-    expect(within(row).getByTestId('book-amount')).toHaveTextContent('+1 KAS')
+    expect(within(row).getByTestId('book-amount')).toHaveTextContent('+1')
     expect(within(row).getByText('Unnamed')).toBeInTheDocument()
     expect(within(row).getByTestId('book-date')).toHaveTextContent(/2023/)
     const proof = within(row).getByTestId('book-proof')
-    expect(proof).toHaveTextContent('payment id')
+    expect(proof).toHaveTextContent('proof')
   })
 
   it('shows the out direction for money going out', async () => {
@@ -142,7 +142,7 @@ describe('BookPage', () => {
     })
     renderBook()
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
-    expect(screen.getByTestId('book-amount')).toHaveTextContent('−1 KAS')
+    expect(screen.getByTestId('book-amount')).toHaveTextContent('−1')
   })
 
   it('loads more rows with pagination', async () => {
@@ -296,7 +296,7 @@ describe('BookPage', () => {
     installDisconnectedKastle()
     renderBook()
     await waitFor(
-      () => expect(screen.getByText('Connect your wallet to see this chama.')).toBeInTheDocument(),
+      () => expect(screen.getByText('Connect to see this chama.')).toBeInTheDocument(),
       { timeout: 1_500 },
     )
     expect(screen.queryByTestId('book-loading')).not.toBeInTheDocument()

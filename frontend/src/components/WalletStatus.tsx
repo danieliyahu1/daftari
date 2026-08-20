@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { KASTLE_EXTENSION_URL } from '../constants'
-import { formatKastleNetwork, shortAddress } from '../format'
+import { shortAddress } from '../format'
 import { EXPECTED_NETWORK } from '../wallet/kastle'
 import { useWallet } from '../wallet/WalletProvider'
 import { useToast } from './Toaster'
@@ -23,9 +23,6 @@ export function WalletStatus(): JSX.Element {
         <div className="wallet-connected" data-testid="wallet-connected">
           <span className="wallet-address" title={wallet.address}>
             {shortAddress(wallet.address)}
-          </span>
-          <span className="network-badge" data-testid="network-badge">
-            {formatKastleNetwork(wallet.network)}
           </span>
           <button
             className="button button-secondary button-sm"
@@ -82,7 +79,7 @@ export function WalletStatus(): JSX.Element {
           </a>
         ) : (
           <p className="wallet-error-text" data-testid="install-message">
-            Install Kastle to connect.
+            Install the Kastle wallet extension to get started.
           </p>
         )}
       </div>
@@ -97,7 +94,7 @@ export function WalletStatus(): JSX.Element {
         disabled={wallet.status === 'connecting'}
         data-testid="connect-button"
       >
-        {wallet.status === 'connecting' ? 'Connecting...' : 'Connect wallet'}
+        {wallet.status === 'connecting' ? 'Connecting...' : 'Connect'}
       </button>
     </div>
   )

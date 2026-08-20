@@ -3,11 +3,11 @@ import type { WalletKind } from '../../../shared/types'
 import { logger } from '../logger'
 import { useRegistry } from '../wallet/registry'
 
-const NAME_LABEL = 'Give this wallet a name.'
-const KIND_QUESTION = 'Is this wallet yours, or a group\u2019s?'
+const NAME_LABEL = 'What should we call this?'
+const KIND_QUESTION = 'Are you joining a chama, or creating one?'
 const KIND_OPTIONS: Array<{ value: WalletKind; label: string }> = [
-  { value: 'user', label: 'This is me' },
-  { value: 'group', label: 'This is a group' },
+  { value: 'user', label: 'Joining a chama' },
+  { value: 'group', label: 'Creating a chama' },
 ]
 const NAME_ERROR_COPY = 'Names are between 2 and 20 characters.'
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/

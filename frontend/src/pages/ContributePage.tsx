@@ -10,8 +10,8 @@ import { logger } from '../logger'
 import { useRegistry } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletProvider'
 
-const NOT_A_GROUP = "This isn't a registered group."
-const NAME_FIRST_COPY = 'Name your wallet in the app before you can join.'
+const NOT_A_GROUP = "This isn\u2019t a chama."
+const NAME_FIRST_COPY = 'Name your account first, then you can join.'
 
 export function ContributePage(): JSX.Element {
   const { code } = useParams<{ code: string }>()
@@ -62,7 +62,7 @@ export function ContributePage(): JSX.Element {
     return (
       <div className="book" data-testid="contribute">
         <BackLink to="/" label="Your chamas" />
-        <EmptyState title="Connect your wallet to contribute.">
+        <EmptyState title="Connect to contribute.">
           <p className="empty-sub">Your contribution is how you join a chama.</p>
         </EmptyState>
       </div>
@@ -93,9 +93,9 @@ export function ContributePage(): JSX.Element {
           <p>{error}</p>
         </div>
       ) : contributed ? (
-        <EmptyState title="Your contribution is in the book.">
+        <EmptyState title="You're in the book.">
           <p className="empty-sub">
-            The group will bring you in. The chama appears on your home once it does.
+            The chama leader will add you. It'll appear on your home once they do.
           </p>
         </EmptyState>
       ) : group ? (
@@ -104,7 +104,7 @@ export function ContributePage(): JSX.Element {
           <span className="book-group-name" title={group.address}>
             {group.name}
           </span>
-          <span className="kind-mark">{group.kind === 'group' ? 'group' : 'person'}</span>
+          <span className="kind-mark">{group.kind === 'group' ? 'chama' : ''}</span>
           {registry.status === 'named' ? (
             <button
               className="button button-primary button-full"

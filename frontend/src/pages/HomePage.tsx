@@ -47,8 +47,8 @@ export function HomePage(): JSX.Element {
 
   if (wallet.status !== 'connected' || !wallet.address) {
     return (
-      <EmptyState title="Connect your wallet to see your chamas.">
-        <p className="empty-sub">Your chamas live on the chain, read through your wallet.</p>
+      <EmptyState title="Connect to see your chamas.">
+        <p className="empty-sub">Open a chama link to get started.</p>
       </EmptyState>
     )
   }
@@ -73,7 +73,7 @@ export function HomePage(): JSX.Element {
               {registry.identity.name}
             </span>
             <span className="kind-mark" data-testid="identity-kind">
-              {registry.identity.kind === 'group' ? 'group' : 'person'}
+              {registry.identity.kind === 'group' ? 'chama' : ''}
             </span>
           </>
         ) : (

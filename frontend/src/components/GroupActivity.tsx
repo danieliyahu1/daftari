@@ -131,8 +131,8 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
   return (
     <>
       {noWallet ? (
-        <EmptyState title="Connect your wallet to see this chama.">
-          <p className="empty-sub">Only members can see a chama.</p>
+        <EmptyState title="Connect to see this chama.">
+          <p className="empty-sub">Only members can see this chama.</p>
         </EmptyState>
       ) : auth.status !== 'ready' ? (
         <EmptyState title="Signing you in...">
@@ -166,11 +166,11 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
                 disabled={members.length === 0}
                 data-testid="send-button"
               >
-                Send to a member
+                Send to someone in the chama
               </button>
               {members.length === 0 ? (
                 <p className="activity-hint" data-testid="send-hint">
-                  Add members first — the fund can only send to its members.
+                  Add people to the chama first. You can only send to members.
                 </p>
               ) : null}
             </div>
@@ -178,18 +178,18 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
 
           {!inviteFirst && (
             <section className="book-header" data-testid="book-group">
-              <span className="micro-label">Group</span>
+              <span className="micro-label">Chama</span>
               <span className="book-group-name" title={book.group.address}>
                 {book.group.name}
               </span>
               <span className="kind-mark" data-testid="book-group-kind">
-                {book.group.kind === 'group' ? 'group' : 'person'}
+                {book.group.kind === 'group' ? 'chama' : ''}
               </span>
             </section>
           )}
 
           <section className="balance-card" data-testid="book-balance">
-            <span className="micro-label">The group has</span>
+            <span className="micro-label">The chama has</span>
             <span className="balance-amount mono">{sompiToKas(book.balance_sompi)} KAS</span>
           </section>
 
@@ -241,7 +241,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
                   onClick={() => setPaying(true)}
                   data-testid="pay-button"
                 >
-                  Pay into the group
+                  Pay into the chama
                 </button>
               )}
             </div>

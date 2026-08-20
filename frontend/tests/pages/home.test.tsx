@@ -52,7 +52,7 @@ describe('HomePage', () => {
     uninstallKastle()
     renderHome()
     expect(
-      screen.getByText('Connect your wallet to see your chamas.'),
+      screen.getByText('Connect to see your chamas.'),
     ).toBeInTheDocument()
   })
 
@@ -138,7 +138,7 @@ describe('HomePage', () => {
     await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
     expect(screen.getByText('You')).toBeInTheDocument()
     expect(screen.getByText('Amina')).toBeInTheDocument()
-    expect(screen.getByTestId('identity-kind')).toHaveTextContent('person')
+    expect(screen.getByTestId('identity-kind')).toHaveTextContent('')
   })
 
   it('shows an error state when loading home fails', async () => {

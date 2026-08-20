@@ -54,7 +54,7 @@ describe('PayDialog pay-in flow', () => {
     renderBookWithWallet()
     await waitFor(() => expect(screen.getByTestId('empty-state')).toBeInTheDocument())
     expect(
-      screen.getByText('Connect your wallet to see this chama.'),
+      screen.getByText('Connect to see this chama.'),
     ).toBeInTheDocument()
     expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
   })

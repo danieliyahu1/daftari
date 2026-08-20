@@ -57,7 +57,7 @@ describe('SendDialog', () => {
 
     expect(screen.getByText('Send 10 KAS to Amina?')).toBeInTheDocument()
     expect(screen.getByTestId('send-warning')).toHaveTextContent(
-      'This moves money out of the fund. Every member will see it in the book. It can\u2019t be undone.',
+      'This moves money out of the chama. Every member will see it in the book. It can\u2019t be undone.',
     )
   })
 
