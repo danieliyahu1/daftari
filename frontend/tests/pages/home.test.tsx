@@ -129,18 +129,6 @@ describe('HomePage', () => {
     expect(screen.getByTestId('invite-button')).toBeInTheDocument()
   })
 
-  it('shows the connected user identifier at the top', async () => {
-    stubApi({
-      'GET /api/wallets/resolve': { body: { wallets: [userWallet()] } },
-      'GET /api/memberships': { body: { identity: userWallet(), members: [], chamas: [] } },
-    })
-    renderHome()
-    await waitFor(() => expect(screen.getByTestId('home-empty')).toBeInTheDocument())
-    expect(screen.getByText('You')).toBeInTheDocument()
-    expect(screen.getByText('Amina')).toBeInTheDocument()
-    expect(screen.getByTestId('identity-kind')).toHaveTextContent('')
-  })
-
   it('shows an error state when loading home fails', async () => {
     stubApi({
       'GET /api/memberships': { status: 503, body: { error: { kind: 'network', message: 'The server is unreachable.' } } },

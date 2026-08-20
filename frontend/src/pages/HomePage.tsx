@@ -5,9 +5,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { EmptyState } from '../components/EmptyState'
 import { GroupActivity } from '../components/GroupActivity'
 import { GroupCard } from '../components/GroupCard'
-import { shortAddress } from '../format'
 import { logger } from '../logger'
-import { useRegistry } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletProvider'
 
 const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
@@ -15,7 +13,6 @@ const NO_CHAMAS_COPY = 'Your chamas appear here once you\u2019re part of one.'
 export function HomePage(): JSX.Element {
   const wallet = useWallet()
   const auth = useAuth()
-  const registry = useRegistry()
   const [home, setHome] = useState<Home | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -65,24 +62,6 @@ export function HomePage(): JSX.Element {
 
   return (
     <div className="home" data-testid="home">
-      <section className="profile-header">
-        <span className="micro-label">You</span>
-        {registry.identity ? (
-          <>
-            <span className="profile-name" title={registry.identity.address}>
-              {registry.identity.name}
-            </span>
-            <span className="kind-mark" data-testid="identity-kind">
-              {registry.identity.kind === 'group' ? 'chama' : ''}
-            </span>
-          </>
-        ) : (
-          <span className="profile-address mono" title={wallet.address}>
-            {shortAddress(wallet.address, 10, 6)}
-          </span>
-        )}
-      </section>
-
       {loading ? (
         <div className="loading-container" data-testid="home-loading">
           <p>Loading your chamas...</p>

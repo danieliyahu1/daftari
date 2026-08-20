@@ -348,7 +348,6 @@ describe('whole demo flow — integration', () => {
       { timeout: 3_000 },
     )
     expect(screen.getAllByText('Amina').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByTestId('identity-kind')).toHaveTextContent('')
 
     // Disconnect and reconnect: recognized by name, no naming asked again (FR-1/7)
     await userEvent.click(screen.getByTestId('disconnect-button'))
