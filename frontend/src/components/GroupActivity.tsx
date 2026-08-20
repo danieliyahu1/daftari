@@ -203,7 +203,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
                     key={row.txid}
                     row={row}
                     onAdd={
-                      isGroup && !row.other_is_member && row.other_kind !== 'group'
+                      isGroup && !row.other_is_member && row.other_kind === 'user'
                         ? () => void handleAdd(row.other_address)
                         : undefined
                     }
