@@ -38,7 +38,13 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
         <span className="book-date" data-testid="book-date">
           {formatDate(row.date / 1000)}
         </span>
-        <span className="book-proof" data-testid="book-proof">
+        <span
+          className="book-proof mono"
+          data-testid="book-proof"
+          role="button"
+          tabIndex={0}
+          onClick={() => void navigator.clipboard.writeText(row.txid)}
+        >
           {row.txid}
         </span>
         {onAdd ? (

@@ -107,4 +107,18 @@ describe('BookRow', () => {
     )
     expect(screen.queryByTestId('add-member')).not.toBeInTheDocument()
   })
+
+  it('copies the full txid to clipboard on click', async () => {
+    const writeText = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    render(
+      <ul>
+        <BookRowComponent row={makeRow()} />
+      </ul>,
+    )
+    const proof = screen.getByTestId('book-proof')
+    expect(proof).toHaveTextContent(TXID)
+    proof.click()
+    expect(writeText).toHaveBeenCalledWith(TXID)
+  })
 })

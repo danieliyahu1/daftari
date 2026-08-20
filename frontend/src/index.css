@@ -554,6 +554,7 @@ body {
   color: var(--color-primary);
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
   transition: color 0.15s;
 }
 
