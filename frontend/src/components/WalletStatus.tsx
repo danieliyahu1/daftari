@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useAuth } from '../auth/AuthProvider'
 import { KASTLE_EXTENSION_URL } from '../constants'
 import { formatKastleNetwork, shortAddress } from '../format'
 import { EXPECTED_NETWORK } from '../wallet/kastle'
@@ -7,6 +8,7 @@ import { useToast } from './Toaster'
 
 export function WalletStatus(): JSX.Element {
   const wallet = useWallet()
+  const auth = useAuth()
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -16,21 +18,34 @@ export function WalletStatus(): JSX.Element {
   }, [wallet.error, wallet.clearError, showToast])
 
   if (wallet.status === 'connected' && wallet.address) {
+    if (auth.status === 'ready') {
+      return (
+        <div className="wallet-connected" data-testid="wallet-connected">
+          <span className="wallet-address" title={wallet.address}>
+            {shortAddress(wallet.address)}
+          </span>
+          <span className="network-badge" data-testid="network-badge">
+            {formatKastleNetwork(wallet.network)}
+          </span>
+          <button
+            className="button button-secondary button-sm"
+            onClick={wallet.disconnect}
+            data-testid="disconnect-button"
+          >
+            Disconnect
+          </button>
+        </div>
+      )
+    }
+
     return (
-      <div className="wallet-connected" data-testid="wallet-connected">
+      <div className="wallet-connected" data-testid="wallet-signing-in">
         <span className="wallet-address" title={wallet.address}>
           {shortAddress(wallet.address)}
         </span>
         <span className="network-badge" data-testid="network-badge">
-          {formatKastleNetwork(wallet.network)}
+          Signing in...
         </span>
-        <button
-          className="button button-secondary button-sm"
-          onClick={wallet.disconnect}
-          data-testid="disconnect-button"
-        >
-          Disconnect
-        </button>
       </div>
     )
   }

@@ -205,16 +205,6 @@ export function useKastle(): KastleState & KastleActions {
     kastle.on('accountsChanged', handleAccountsChanged)
     kastle.on('networkChanged', handleNetworkChanged)
 
-    kastle
-      .getAccount()
-      .then((account) => {
-        const address = account?.address
-        if (address) void applyAccount(address)
-      })
-      .catch((err) => {
-        logger.warn('kastle getAccount failed', { error: String(err) })
-      })
-
     return () => {
       kastle.off?.('accountsChanged', handleAccountsChanged)
       kastle.off?.('networkChanged', handleNetworkChanged)
