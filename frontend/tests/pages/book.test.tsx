@@ -128,10 +128,10 @@ describe('BookPage', () => {
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
     expect(within(row).getByTestId('book-amount')).toHaveTextContent('+1 KAS')
-    expect(within(row).getByText('kaspat...ukdl')).toBeInTheDocument()
+    expect(within(row).getByText('Unnamed')).toBeInTheDocument()
     expect(within(row).getByTestId('book-date')).toHaveTextContent(/2023/)
     const proof = within(row).getByTestId('book-proof')
-    expect(proof).toHaveTextContent(TXID)
+    expect(proof).toHaveTextContent('payment id')
   })
 
   it('shows the out direction for money going out', async () => {
