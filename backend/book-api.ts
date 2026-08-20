@@ -96,16 +96,39 @@ function inputAmount(input: TxInput): bigint | null {
   return null;
 }
 
-// in when the group address is among the outputs, out when among the inputs.
-// A transaction that touches the group on both sides counts as in.
+// Direction is determined by net flow: compare what the group spends (inputs)
+// with what it receives (outputs). When the group appears on only one side,
+// the direction is obvious. When it appears on both sides — e.g. a send that
+// returns change — the direction follows whichever side is larger. Equal
+// amounts (a pure self-send) produce null.
 export function deriveDirection(
   groupAddress: string,
   tx: TxModel,
 ): BookDirection | null {
-  const receives = tx.outputs.some((output) => outputAddress(output) === groupAddress);
-  if (receives) return "in";
-  const spends = tx.inputs.some((input) => inputAddress(input) === groupAddress);
-  if (spends) return "out";
+  let groupIn = 0n;
+  for (const input of tx.inputs) {
+    if (inputAddress(input) === groupAddress) {
+      const amount = inputAmount(input);
+      if (amount !== null) groupIn += amount;
+    }
+  }
+  let groupOut = 0n;
+  for (const output of tx.outputs) {
+    if (outputAddress(output) === groupAddress) {
+      groupOut += toSompi(output.amount);
+    }
+  }
+
+  const hasGroupIn = groupIn > 0n;
+  const hasGroupOut = groupOut > 0n;
+
+  if (hasGroupIn && hasGroupOut) {
+    if (groupIn > groupOut) return "out";
+    if (groupOut > groupIn) return "in";
+    return null;
+  }
+  if (hasGroupOut) return "in";
+  if (hasGroupIn) return "out";
   return null;
 }
 
@@ -127,7 +150,9 @@ export function selectOtherParty(
 }
 
 // The group-facing amount: what the group received (outputs to the group) when
-// the direction is in, what the group spent (inputs from the group) when out.
+// the direction is in, what the group sent to others (non-group outputs) when
+// out. For outgoing transactions with change, this shows the actual amount
+// transferred rather than the total UTXO value consumed.
 function groupAmount(
   groupAddress: string,
   tx: TxModel,
@@ -141,11 +166,10 @@ function groupAmount(
     return amounts.reduce((acc, amount) => acc + amount, 0n);
   }
   const amounts: bigint[] = [];
-  for (const input of tx.inputs) {
-    if (inputAddress(input) !== groupAddress) continue;
-    const amount = inputAmount(input);
-    if (amount === null) return null;
-    amounts.push(amount);
+  for (const output of tx.outputs) {
+    const addr = outputAddress(output);
+    if (addr === null || addr === groupAddress) continue;
+    amounts.push(toSompi(output.amount));
   }
   if (amounts.length === 0) return null;
   return amounts.reduce((acc, amount) => acc + amount, 0n);

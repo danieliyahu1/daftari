@@ -144,10 +144,32 @@ describe("deriveDirection", () => {
     expect(deriveDirection(GROUP, t)).toBe("out");
   });
 
-  it("prefers in when the group is on both sides", () => {
+  it("returns null for a self-send where group is on both sides equally", () => {
     const t = tx({
       inputs: [{ address: GROUP, amount: 100 }],
       outputs: [{ address: GROUP, amount: 100 }],
+    });
+    expect(deriveDirection(GROUP, t)).toBeNull();
+  });
+
+  it("is out when the group spends more than it receives", () => {
+    const t = tx({
+      inputs: [{ address: GROUP, amount: 100 }],
+      outputs: [
+        { address: GROUP, amount: 20 },
+        { address: ALICE, amount: 80 },
+      ],
+    });
+    expect(deriveDirection(GROUP, t)).toBe("out");
+  });
+
+  it("is in when the group receives more than it spends", () => {
+    const t = tx({
+      inputs: [{ address: ALICE, amount: 100 }],
+      outputs: [
+        { address: GROUP, amount: 90 },
+        { address: ALICE, amount: 10 },
+      ],
     });
     expect(deriveDirection(GROUP, t)).toBe("in");
   });
@@ -246,16 +268,20 @@ describe("deriveBookRow", () => {
     expect(row?.amount_sompi).toBe("100");
   });
 
-  it("sums every group input on an outgoing row", () => {
+  it("sums non-group outputs on an outgoing row", () => {
     const t = tx({
       inputs: [
         { address: GROUP, amount: 60 },
         { address: GROUP, amount: 40 },
       ],
-      outputs: [{ address: ALICE, amount: 100 }],
+      outputs: [
+        { address: ALICE, amount: 80 },
+        { address: GROUP, amount: 20 },
+      ],
     });
     const row = deriveBookRow(GROUP, t, NETWORK);
-    expect(row?.amount_sompi).toBe("100");
+    expect(row?.amount_sompi).toBe("80");
+    expect(row?.direction).toBe("out");
   });
 
   it("returns null when the group does not appear", () => {
@@ -272,6 +298,28 @@ describe("deriveBookRow", () => {
       outputs: [{ address: GROUP, amount: 100 }],
     });
     expect(deriveBookRow(GROUP, t, NETWORK)).toBeNull();
+  });
+
+  it("treats a group-send-with-change as outgoing to the counterparty", () => {
+    const t = tx({
+      inputs: [
+        { address: GROUP, amount: 100 },
+        { address: GROUP, amount: 50 },
+      ],
+      outputs: [
+        { address: ALICE, amount: 120 },
+        { address: GROUP, amount: 30 },
+      ],
+    });
+    const row = deriveBookRow(GROUP, t, NETWORK);
+    expect(row).toEqual<BookRow>({
+      direction: "out",
+      amount_sompi: "120",
+      other_address: ALICE,
+      date: 0,
+      txid: "a".repeat(64),
+      proof_url: `https://explorer.kaspa.org/tn10/txs/${"a".repeat(64)}`,
+    });
   });
 
   it("returns null when the group-facing amount is unknowable", () => {
