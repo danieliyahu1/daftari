@@ -27,7 +27,7 @@ describe('BookRow', () => {
     expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--in')
     expect(screen.getByText('kaspat...ukdl')).toBeInTheDocument()
     expect(screen.getByTestId('book-date')).toHaveTextContent(/2023/)
-    expect(screen.getByTestId('book-proof')).toHaveTextContent(TXID)
+    expect(screen.getByTestId('book-proof')).toHaveTextContent('abababab...ababab')
   })
 
   it('renders an outgoing row with a minus amount', () => {
@@ -117,7 +117,7 @@ describe('BookRow', () => {
       </ul>,
     )
     const proof = screen.getByTestId('book-proof')
-    expect(proof).toHaveTextContent(TXID)
+    expect(proof).toHaveTextContent('abababab...ababab')
     proof.click()
     expect(writeText).toHaveBeenCalledWith(TXID)
   })

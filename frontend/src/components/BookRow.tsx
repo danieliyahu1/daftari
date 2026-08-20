@@ -1,5 +1,5 @@
 import type { BookRow as BookRowType } from '../../../shared/types'
-import { formatDate, shortAddress, sompiToKas } from '../format'
+import { formatDate, shortAddress, shortTxid, sompiToKas } from '../format'
 
 interface BookRowProps {
   row: BookRowType
@@ -45,7 +45,7 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
           tabIndex={0}
           onClick={() => void navigator.clipboard.writeText(row.txid)}
         >
-          {row.txid}
+          {shortTxid(row.txid)}
         </span>
         {onAdd ? (
           <button
