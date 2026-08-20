@@ -555,11 +555,13 @@ body {
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 0.15s;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
 }
 
 .book-proof:hover {
-  color: var(--color-primary-hover);
+  background: rgba(99, 102, 241, 0.15);
 }
 
 .load-more {
