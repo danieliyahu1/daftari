@@ -77,7 +77,6 @@ describe('GroupActivity', () => {
       renderActivity({ inviteFirst: true })
       await waitFor(() => expect(screen.getByTestId('book-row')).toBeInTheDocument())
 
-      expect(screen.queryByTestId('book-group')).not.toBeInTheDocument()
       expect(screen.queryByTestId('pay-button')).not.toBeInTheDocument()
     })
 
@@ -105,7 +104,7 @@ describe('GroupActivity', () => {
 
       const send = screen.getByTestId('send-button')
       expect(send).toBeDisabled()
-      expect(send).toHaveTextContent('Send to someone in the chama')
+      expect(send).toHaveTextContent('Send to a member')
       expect(screen.getByTestId('send-hint')).toBeInTheDocument()
     })
 
@@ -149,12 +148,12 @@ describe('GroupActivity', () => {
   })
 
   describe('as the group book (default)', () => {
-    it('shows the book header and the invite action at the bottom', async () => {
+    it('shows the group name in the balance card and the invite action at the bottom', async () => {
       stubApi({ [BOOK_PATH]: { body: bookStub() } })
       renderActivity()
-      await waitFor(() => expect(screen.getByTestId('book-group')).toBeInTheDocument())
+      await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
 
-      expect(screen.getByTestId('book-group')).toHaveTextContent('Plot')
+      expect(screen.getByTestId('book-balance')).toHaveTextContent('Plot')
       expect(screen.getByTestId('invite-button')).toHaveTextContent(
         'Invite someone to contribute',
       )

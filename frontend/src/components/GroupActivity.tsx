@@ -166,7 +166,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
                 disabled={members.length === 0}
                 data-testid="send-button"
               >
-                Send to someone in the chama
+                Send to a member
               </button>
               {members.length === 0 ? (
                 <p className="activity-hint" data-testid="send-hint">
@@ -176,19 +176,12 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
             </div>
           )}
 
-          {!inviteFirst && (
-            <section className="book-header" data-testid="book-group">
-              <span className="micro-label">Chama</span>
-              <span className="book-group-name" title={book.group.address}>
+          <section className="balance-card" data-testid="book-balance">
+            {!inviteFirst && (
+              <span className="balance-group-name" title={book.group.address}>
                 {book.group.name}
               </span>
-              <span className="kind-mark" data-testid="book-group-kind">
-                {book.group.kind === 'group' ? 'chama' : ''}
-              </span>
-            </section>
-          )}
-
-          <section className="balance-card" data-testid="book-balance">
+            )}
             <span className="micro-label">The chama has</span>
             <span className="balance-amount mono">{sompiToKas(book.balance_sompi)} KAS</span>
           </section>
@@ -252,6 +245,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
       {paying && wallet.address && (
         <PayDialog
           groupCode={groupCode}
+          groupName={book.group.name}
           onClose={() => setPaying(false)}
           onRecorded={() => void load()}
         />

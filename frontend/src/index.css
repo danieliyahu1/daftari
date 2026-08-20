@@ -416,24 +416,14 @@ body {
   gap: 0.35rem;
   text-align: center;
   padding: 1.5rem 0;
-  border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   margin-bottom: 1.5rem;
 }
 
-.book-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.book-group-name {
+.balance-group-name {
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--color-text);
-  text-align: center;
 }
 
 .contribute-card {
@@ -475,6 +465,14 @@ body {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
+}
+
+.book-row--in {
+  border-left: 3px solid var(--color-success);
+}
+
+.book-row--out {
+  border-left: 3px solid var(--color-text-secondary);
 }
 
 .book-row-body {
@@ -536,7 +534,7 @@ body {
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: 4px;
   transition: background 0.15s, color 0.15s;
 }
@@ -551,10 +549,25 @@ body {
   border-radius: 4px;
   transition: background 0.15s;
   align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 .book-party--unnamed:hover {
   background: rgba(99, 102, 241, 0.15);
+}
+
+.unnamed-label {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.unnamed-hint {
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+  font-family: var(--font-mono);
 }
 
 .load-more {

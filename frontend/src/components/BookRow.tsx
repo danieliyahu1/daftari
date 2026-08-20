@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import type { BookRow as BookRowType } from '../../../shared/types'
-import { formatDate, sompiToKas } from '../format'
+import { formatDate, shortAddress, sompiToKas } from '../format'
 
 interface BookRowProps {
   row: BookRowType
@@ -9,9 +10,17 @@ interface BookRowProps {
 
 export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Element {
   const isIn = row.direction === 'in'
-  const sign = isIn ? '+' : '−'
+  const sign = isIn ? '+' : '\u2212'
+  const [proofCopied, setProofCopied] = useState(false)
+
+  const handleCopyProof = (): void => {
+    void navigator.clipboard.writeText(row.txid)
+    setProofCopied(true)
+    setTimeout(() => setProofCopied(false), 1500)
+  }
+
   return (
-    <li className="book-row" data-testid="book-row">
+    <li className={`book-row book-row--${row.direction}`} data-testid="book-row">
       <div className="book-row-body">
         <span
           className={`book-amount mono book-amount--${row.direction}`}
@@ -31,13 +40,13 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
         ) : (
           <span
             className="book-party book-party--unnamed"
-            title={row.other_address}
             data-testid="book-party-address"
             role="button"
             tabIndex={0}
             onClick={() => void navigator.clipboard.writeText(row.other_address)}
           >
-            Unnamed
+            <span className="unnamed-label">Unknown</span>
+            <span className="unnamed-hint">{shortAddress(row.other_address, 8, 4)}</span>
           </span>
         )}
       </div>
@@ -51,9 +60,9 @@ export function BookRow({ row, onAdd, addBusy = false }: BookRowProps): JSX.Elem
           title={row.txid}
           role="button"
           tabIndex={0}
-          onClick={() => void navigator.clipboard.writeText(row.txid)}
+          onClick={handleCopyProof}
         >
-          proof
+          {proofCopied ? 'Copied' : 'proof'}
         </span>
         {onAdd ? (
           <button

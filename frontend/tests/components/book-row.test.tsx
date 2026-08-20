@@ -25,7 +25,7 @@ describe('BookRow', () => {
     )
     expect(screen.getByTestId('book-amount')).toHaveTextContent('+1')
     expect(screen.getByTestId('book-amount')).toHaveClass('book-amount--in')
-    expect(screen.getByText('Unnamed')).toBeInTheDocument()
+    expect(screen.getByTestId('book-party-address')).toHaveTextContent('Unknown')
     expect(screen.getByTestId('book-date')).toHaveTextContent(/2023/)
     expect(screen.getByTestId('book-proof')).toHaveTextContent('proof')
   })
@@ -65,13 +65,13 @@ describe('BookRow', () => {
     expect(screen.getByTestId('book-party-kind')).toHaveTextContent('chama')
   })
 
-  it('shows Unnamed with click-to-copy for unregistered counterparties', () => {
+  it('shows Unknown with click-to-copy for unregistered counterparties', () => {
     render(
       <ul>
         <BookRowComponent row={makeRow()} />
       </ul>,
     )
-    expect(screen.getByTestId('book-party-address')).toHaveTextContent('Unnamed')
+    expect(screen.getByTestId('book-party-address')).toHaveTextContent('Unknown')
     expect(screen.queryByTestId('book-party-kind')).not.toBeInTheDocument()
   })
 

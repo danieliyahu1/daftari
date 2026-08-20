@@ -75,12 +75,11 @@ describe('BookPage', () => {
     expect(screen.getByTestId('book-balance')).toHaveTextContent('50 KAS')
   })
 
-  it('shows the registered group name in the book header', async () => {
+  it('shows the registered group name in the balance card', async () => {
     stubApi({ [BOOK_PATH]: { body: bookStub({ balance_sompi: '0', rows: [] }) } })
     renderBook()
-    await waitFor(() => expect(screen.getByTestId('book-group')).toBeInTheDocument())
-    expect(screen.getByTestId('book-group')).toHaveTextContent('Plot')
-    expect(screen.getByTestId('book-group-kind')).toHaveTextContent('chama')
+    await waitFor(() => expect(screen.getByTestId('book-balance')).toBeInTheDocument())
+    expect(screen.getByTestId('book-balance')).toHaveTextContent('Plot')
   })
 
   it('shows a registered counterparty by name with a person mark in the book', async () => {
@@ -129,7 +128,7 @@ describe('BookPage', () => {
     await waitFor(() => expect(screen.getAllByTestId('book-row')).toHaveLength(1))
     const row = screen.getByTestId('book-row')
     expect(within(row).getByTestId('book-amount')).toHaveTextContent('+1')
-    expect(within(row).getByText('Unnamed')).toBeInTheDocument()
+    expect(within(row).getByTestId('book-party-address')).toHaveTextContent('Unknown')
     expect(within(row).getByTestId('book-date')).toHaveTextContent(/2023/)
     const proof = within(row).getByTestId('book-proof')
     expect(proof).toHaveTextContent('proof')

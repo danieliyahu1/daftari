@@ -17,6 +17,7 @@ export type PayPhase =
 
 interface PayDialogProps {
   groupCode: string
+  groupName?: string
   onClose: () => void
   onRecorded: () => void
 }
@@ -57,7 +58,7 @@ function PayOutcome({
   )
 }
 
-export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): JSX.Element {
+export function PayDialog({ groupCode, groupName, onClose, onRecorded }: PayDialogProps): JSX.Element {
   const [phase, setPhase] = useState<PayPhase>({ name: 'amount' })
   const [amount, setAmount] = useState('')
   const [amountError, setAmountError] = useState<string | null>(null)
@@ -195,7 +196,7 @@ export function PayDialog({ groupCode, onClose, onRecorded }: PayDialogProps): J
         {phase.name === 'review' && (
           <div className="pay-review">
             <h2 className="dialog-title">
-              Pay {phase.kas} KAS into {shortAddress(groupCode, 10, 6)}?
+              Pay {phase.kas} KAS into {groupName ?? shortAddress(groupCode, 10, 6)}?
             </h2>
             <div className="dialog-actions">
               <button

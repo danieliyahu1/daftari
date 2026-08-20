@@ -166,12 +166,12 @@ export function SendDialog({ fundAddress, members, onClose, onSent }: SendDialog
         className="dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Send to someone in the chama"
+        aria-label="Send to a member"
         data-testid="send-dialog-panel"
       >
         {phase.name === 'member' && (
           <div className="send-member">
-            <h2 className="dialog-title">Send to someone in the chama</h2>
+            <h2 className="dialog-title">Send to a member</h2>
             {members.length === 0 ? (
               <p className="dialog-copy" data-testid="send-no-members">
                 Add people to the chama first. You can only send to members.

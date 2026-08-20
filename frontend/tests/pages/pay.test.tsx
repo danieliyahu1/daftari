@@ -75,7 +75,7 @@ describe('PayDialog pay-in flow', () => {
     await userEvent.click(within(dialog).getByTestId('pay-next'))
 
     expect(
-      within(dialog).getByText(/Pay 1 KAS into kaspatest:\.\.\./),
+      within(dialog).getByText(/Pay 1 KAS into Plot/),
     ).toBeInTheDocument()
     expect(within(dialog).getByTestId('pay-approve')).toBeInTheDocument()
     expect(within(dialog).getByTestId('pay-back')).toBeInTheDocument()
