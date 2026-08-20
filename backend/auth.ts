@@ -9,7 +9,7 @@ import { logger } from "./logger";
 export const SESSION_TTL_MS = 15 * 60_000;
 
 const MESSAGE_VERSION = "1";
-const STATEMENT = "I'm signing into Daftari. This is free — no payment happens here.";
+const STATEMENT = "This is free — no payment happens here.";
 
 export interface AuthConfig {
   origin: string;
@@ -33,10 +33,10 @@ export function buildSignInMessage(input: {
   issuedAt: string;
 }): string {
   return [
+    STATEMENT,
+    "",
     "Daftari wants you to sign in with your Kaspa account:",
     input.address,
-    "",
-    STATEMENT,
     "",
     `URI: ${input.origin}`,
     `Version: ${MESSAGE_VERSION}`,
@@ -57,12 +57,12 @@ interface ParsedMessage {
 export function parseSignInMessage(message: string): ParsedMessage | null {
   const lines = message.split("\n");
   if (lines.length !== 10) return null;
-  if (!lines[0].startsWith("Daftari wants you to sign in with your Kaspa account:")) {
+  if (lines[0] !== STATEMENT) return null;
+  if (lines[1] !== "") return null;
+  if (!lines[2].startsWith("Daftari wants you to sign in with your Kaspa account:")) {
     return null;
   }
-  const address = lines[1].trim();
-  if (lines[2] !== "") return null;
-  if (lines[3] !== STATEMENT) return null;
+  const address = lines[3].trim();
   if (lines[4] !== "") return null;
   const uri = lines[5];
   if (!uri.startsWith("URI: ")) return null;
