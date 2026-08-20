@@ -205,6 +205,16 @@ export function useKastle(): KastleState & KastleActions {
     kastle.on('accountsChanged', handleAccountsChanged)
     kastle.on('networkChanged', handleNetworkChanged)
 
+    void (async () => {
+      try {
+        const account = await kastle.getAccount()
+        const address = account?.address
+        if (address) void applyAccount(address)
+      } catch {
+        // No pre-existing account; user must connect manually.
+      }
+    })()
+
     return () => {
       kastle.off?.('accountsChanged', handleAccountsChanged)
       kastle.off?.('networkChanged', handleNetworkChanged)
