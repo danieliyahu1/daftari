@@ -40,9 +40,9 @@ describe('WalletStatus', () => {
   it('prompts to install when no wallet is present', () => {
     uninstallKastle()
     renderStatus()
-    expect(screen.getByTestId('install-message')).toHaveTextContent(
-      'Install the Kastle wallet extension to get started.',
-    )
+    const link = screen.getByTestId('install-button')
+    expect(link).toHaveTextContent('Install Kastle')
+    expect(link).toHaveAttribute('href', 'https://chromewebstore.google.com/detail/kastle/oambclflhjfppdmkghokjmpppmaebego')
   })
 
   it('shows the connect button when disconnected', async () => {

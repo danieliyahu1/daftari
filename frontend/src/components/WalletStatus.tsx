@@ -67,21 +67,15 @@ export function WalletStatus(): JSX.Element {
   if (wallet.status === 'not-installed') {
     return (
       <div className="wallet-connect">
-        {KASTLE_EXTENSION_URL ? (
-          <a
-            href={KASTLE_EXTENSION_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="button button-primary"
-            data-testid="install-button"
-          >
-            Install Kastle
-          </a>
-        ) : (
-          <p className="wallet-error-text" data-testid="install-message">
-            Install the Kastle wallet extension to get started.
-          </p>
-        )}
+        <a
+          href={KASTLE_EXTENSION_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="button button-primary"
+          data-testid="install-button"
+        >
+          Install Kastle
+        </a>
       </div>
     )
   }
