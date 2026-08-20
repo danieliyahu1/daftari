@@ -242,7 +242,7 @@ export function GroupActivity({ groupCode, inviteFirst = false }: GroupActivityP
         </>
       ) : null}
 
-      {paying && wallet.address && (
+      {paying && wallet.address && book && (
         <PayDialog
           groupCode={groupCode}
           groupName={book.group.name}
