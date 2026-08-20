@@ -74,7 +74,7 @@ export function ContributePage(): JSX.Element {
       <div className="book" data-testid="contribute">
         <BackLink to="/" label="Your chamas" />
         <EmptyState title="Signing you in...">
-          <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle.'}</p>
+          <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle. This is free — no payment happens here.'}</p>
         </EmptyState>
       </div>
     )

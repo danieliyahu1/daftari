@@ -56,7 +56,7 @@ export function HomePage(): JSX.Element {
   if (auth.status !== 'ready') {
     return (
       <EmptyState title="Signing you in...">
-        <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle.'}</p>
+        <p className="empty-sub">{auth.status === 'error' ? auth.error : 'Confirm the sign-in message in Kastle. This is free — no payment happens here.'}</p>
       </EmptyState>
     )
   }
