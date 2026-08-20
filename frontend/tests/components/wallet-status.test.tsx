@@ -1,15 +1,26 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { Wallet } from '../../../shared/types'
 import { ToastProvider } from '../../src/components/Toaster'
 import { WalletStatus } from '../../src/components/WalletStatus'
+import { RegistryProvider } from '../../src/wallet/registry'
 import { WalletProvider } from '../../src/wallet/WalletProvider'
-import { installConnectedKastle, uninstallKastle } from '../helpers'
+import { installConnectedKastle, stubApi, uninstallKastle, USER_ADDRESS } from '../helpers'
+
+const REGISTERED: Wallet = {
+  address: USER_ADDRESS,
+  name: 'Amina',
+  kind: 'user',
+  created_at: 1_700_000_000_000,
+}
 
 function renderStatus(): void {
   render(
     <ToastProvider>
       <WalletProvider>
-        <WalletStatus />
+        <RegistryProvider>
+          <WalletStatus />
+        </RegistryProvider>
       </WalletProvider>
     </ToastProvider>,
   )
@@ -18,6 +29,7 @@ function renderStatus(): void {
 describe('WalletStatus', () => {
   afterEach(() => {
     uninstallKastle()
+    vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
@@ -32,19 +44,34 @@ describe('WalletStatus', () => {
   it('shows the connect button when disconnected', async () => {
     const mock = installConnectedKastle()
     ;(mock.getAccount as ReturnType<typeof vi.fn>).mockResolvedValue({ address: '' })
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [] } } })
     renderStatus()
     await waitFor(() => expect(screen.getByTestId('connect-button')).toBeInTheDocument())
   })
 
-  it('shows the connected chip without a network badge', async () => {
+  it('shows the registered name and disconnect button', async () => {
     installConnectedKastle()
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [REGISTERED] } } })
     renderStatus()
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
+    expect(screen.getByText('Amina')).toBeInTheDocument()
+    expect(screen.getByTestId('disconnect-button')).toBeInTheDocument()
     expect(screen.queryByTestId('network-badge')).not.toBeInTheDocument()
+  })
+
+  it('shows only the disconnect button when the wallet is unnamed', async () => {
+    installConnectedKastle()
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [] } } })
+    renderStatus()
+    await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
+    expect(screen.getByTestId('disconnect-button')).toBeInTheDocument()
+    expect(screen.queryByTestId('network-badge')).not.toBeInTheDocument()
+    expect(screen.queryByText(USER_ADDRESS)).not.toBeInTheDocument()
   })
 
   it('disconnects on demand', async () => {
     installConnectedKastle()
+    stubApi({ 'GET /api/wallets/resolve': { body: { wallets: [REGISTERED] } } })
     renderStatus()
     await waitFor(() => expect(screen.getByTestId('wallet-connected')).toBeInTheDocument())
     await userEvent.click(screen.getByTestId('disconnect-button'))

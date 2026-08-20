@@ -1,14 +1,15 @@
 import { useEffect } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { KASTLE_EXTENSION_URL } from '../constants'
-import { shortAddress } from '../format'
 import { EXPECTED_NETWORK } from '../wallet/kastle'
+import { useRegistry } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletProvider'
 import { useToast } from './Toaster'
 
 export function WalletStatus(): JSX.Element {
   const wallet = useWallet()
   const auth = useAuth()
+  const registry = useRegistry()
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -21,9 +22,11 @@ export function WalletStatus(): JSX.Element {
     if (auth.status === 'ready') {
       return (
         <div className="wallet-connected" data-testid="wallet-connected">
-          <span className="wallet-address" title={wallet.address}>
-            {shortAddress(wallet.address)}
-          </span>
+          {registry.identity?.name && (
+            <span className="wallet-address" title={wallet.address}>
+              {registry.identity.name}
+            </span>
+          )}
           <button
             className="button button-secondary button-sm"
             onClick={wallet.disconnect}
@@ -37,9 +40,6 @@ export function WalletStatus(): JSX.Element {
 
     return (
       <div className="wallet-connected" data-testid="wallet-signing-in">
-        <span className="wallet-address" title={wallet.address}>
-          {shortAddress(wallet.address)}
-        </span>
         <span className="network-badge" data-testid="network-badge">
           Signing in...
         </span>
