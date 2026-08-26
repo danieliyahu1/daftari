@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: daftari
-          image: ghcr.io/danieliyahu1/daftari:sha-0000000000000000000000000000000000000000
+          image: ghcr.io/danieliyahu1/daftari:sha-03e50cec0a9a04d8a9f407a73679985018cbcd72
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
