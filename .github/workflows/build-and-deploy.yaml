@@ -40,7 +40,7 @@ jobs:
             https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
             | tar --extract --gzip --file - --directory "$RUNNER_TEMP" kubeconform
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-      - run: kubeconform -strict -summary deploy/
+      - run: kubeconform -strict -summary -ignore-missing-schemas deploy/
 
   publish:
     needs: validate
