@@ -34,7 +34,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:web
       - run: npm run build
-      - uses: yannh/kubeconform@v1.5.0
+      - uses: yannh/kubeconform@v0.8.0
         with:
           args: -strict -summary deploy/
 
