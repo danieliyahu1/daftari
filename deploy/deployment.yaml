@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: daftari
+  namespace: daftari
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: daftari
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: daftari
+    spec:
+      containers:
+        - name: daftari
+          image: ghcr.io/danieliyahu1/daftari:sha-0000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: daftari-config
+            - configMapRef:
+                name: daftari-runtime-config
+            - secretRef:
+                name: daftari-secrets
+          resources:
+            requests:
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20

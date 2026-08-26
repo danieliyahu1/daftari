@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: daftari-config
+  namespace: daftari
+data:
+  NODE_ENV: production
+  PORT: "3001"

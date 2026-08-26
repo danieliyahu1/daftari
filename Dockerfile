@@ -31,4 +31,5 @@ COPY --from=build /app/frontend/dist ./frontend/dist
 
 ENV PORT=3001
 EXPOSE 3001
+USER node
 CMD ["npm", "run", "serve"]
