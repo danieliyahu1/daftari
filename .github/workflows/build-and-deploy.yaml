@@ -34,9 +34,13 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:web
       - run: npm run build
-      - uses: yannh/kubeconform@v0.8.0
-        with:
-          args: -strict -summary deploy/
+      - name: Install kubeconform
+        run: |
+          curl --fail --location --silent --show-error \
+            https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | tar --extract --gzip --file - --directory "$RUNNER_TEMP" kubeconform
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - run: kubeconform -strict -summary deploy/
 
   publish:
     needs: validate
