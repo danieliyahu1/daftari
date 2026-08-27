@@ -2,6 +2,8 @@
 
 A **chama** (rotating savings group) app on the Kaspa testnet-10 network.
 
+**Live:** https://daftari.danieliyahu.com
+
 In Daftari, a chama is a real Kaspa wallet. Members pool money into it by paying on-chain, the group's history is its on-chain ledger (the "book"), and members bring people in and send money out — all verified by real transactions on the network.
 
 ## How it works
